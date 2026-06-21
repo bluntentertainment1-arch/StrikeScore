@@ -12,7 +12,8 @@ class MatchesViewModel: ObservableObject {
 
     private var apiTimer: Timer?
     private var cmsTimer: Timer?
-    private let competition = "WC"
+    private let league = 1      // World Cup
+    private let season = 2022   // Use 2022 for World Cup data
 
     var liveMatches: [Match] {
         matches.filter { $0.isLive }
@@ -31,8 +32,8 @@ class MatchesViewModel: ObservableObject {
         errorMessage = nil
 
         do {
-            async let matchesTask = FootballAPIService.shared.fetchMatches(competition: competition)
-            async let standingsTask = FootballAPIService.shared.fetchStandings(competition: competition)
+            async let matchesTask = FootballAPIService.shared.fetchMatches(league: league, season: season)
+            async let standingsTask = FootballAPIService.shared.fetchStandings(league: league, season: season)
 
             let (fetchedMatches, fetchedStandings) = try await (matchesTask, standingsTask)
 
@@ -42,16 +43,27 @@ class MatchesViewModel: ObservableObject {
                 return m1.utcDate < m2.utcDate
             }
 
-            self.standings = fetchedStandings.filter { $0.type == "TOTAL" }
+            self.standings = fetchedStandings
 
             CacheService.shared.save(fetchedMatches, forKey: "cachedMatches")
             CacheService.shared.save(fetchedStandings, forKey: "cachedStandings")
 
+            AppLogger.shared.log("Data loaded: \(self.matches.count) matches, \(self.standings.count) standings")
+
         } catch FootballAPIService.APIError.rateLimited {
             errorMessage = "Rate limit reached. Wait a minute."
             loadFromCache()
+        } catch FootballAPIService.APIError.httpError(let code, let message) {
+            errorMessage = "API Error \(code): \(message)"
+            AppLogger.shared.error("API HTTP Error: \(code) - \(message)")
+            loadFromCache()
+        } catch FootballAPIService.APIError.networkError(let error) {
+            errorMessage = "Network error: \(error.localizedDescription)"
+            AppLogger.shared.error("Network error: \(error)")
+            loadFromCache()
         } catch {
-            errorMessage = "Failed to load data. Using cached data."
+            errorMessage = "Failed to load data: \(error.localizedDescription)"
+            AppLogger.shared.error("General error: \(error)")
             loadFromCache()
         }
 
@@ -70,7 +82,10 @@ class MatchesViewModel: ObservableObject {
             CacheService.shared.save(featured, forKey: "cachedFeatured")
             CacheService.shared.save(editorial, forKey: "cachedEditorial")
 
+            AppLogger.shared.log("CMS loaded: \(featured.count) featured, \(editorial.count) editorial")
+
         } catch {
+            AppLogger.shared.error("CMS load error: \(error.localizedDescription)")
             loadCMSFromCache()
         }
     }
@@ -78,9 +93,11 @@ class MatchesViewModel: ObservableObject {
     private func loadFromCache() {
         if let cached: [Match] = CacheService.shared.load([Match].self, forKey: "cachedMatches") {
             self.matches = cached
+            AppLogger.shared.log("Loaded \(cached.count) matches from cache")
         }
         if let cached: [GroupStanding] = CacheService.shared.load([GroupStanding].self, forKey: "cachedStandings") {
             self.standings = cached
+            AppLogger.shared.log("Loaded \(cached.count) standings from cache")
         }
     }
 
