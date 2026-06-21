@@ -1,6 +1,6 @@
 import Foundation
 
-struct FeaturedMatch: Identifiable {
+struct FeaturedMatch: Identifiable, Codable {
     let id: String
     let competition: String
     let homeTeam: String
@@ -17,7 +17,7 @@ struct FeaturedMatch: Identifiable {
     }
 }
 
-struct EditorialItem: Identifiable {
+struct EditorialItem: Identifiable, Codable {
     let id: String
     let headline: String
     let body: String
