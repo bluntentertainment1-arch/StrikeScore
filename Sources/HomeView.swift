@@ -73,14 +73,23 @@ struct DateCell: View {
     let isSelected: Bool
     let action: () -> Void
     
-    var body: some View {
-        let date = Calendar.current.date(byAdding: .day, value: day, to: Date())!
+    private var date: Date {
+        Calendar.current.date(byAdding: .day, value: day, to: Date())!
+    }
+    
+    private var weekday: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEE"
-        let weekday = formatter.string(from: date)
+        return formatter.string(from: date)
+    }
+    
+    private var dayNum: String {
+        let formatter = DateFormatter()
         formatter.dateFormat = "d"
-        let dayNum = formatter.string(from: date)
-        
+        return formatter.string(from: date)
+    }
+    
+    var body: some View {
         Button(action: action) {
             VStack(spacing: 4) {
                 Text(weekday)
