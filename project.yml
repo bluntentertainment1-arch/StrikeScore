@@ -5,9 +5,16 @@ targets:
     platform: iOS
     deploymentTarget: '16.0'
     sources:
-      - Sources
+      - path: Sources
+        includes:
+          - "**/*.swift"
+      - path: Resources
+        includes:
+          - "**/*"
     resources:
-      - Resources
+      - path: Resources
+        includes:
+          - "**/*"
     dependencies:
       - framework: MessageUI.framework
         embed: false
