@@ -104,7 +104,7 @@ class ExcelCMSService {
         var insideQuotes = false
 
         for char in row {
-            if char == """ {
+            if char == "\"" {
                 insideQuotes = !insideQuotes
             } else if char == "," && !insideQuotes {
                 result.append(current)
