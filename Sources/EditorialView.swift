@@ -7,9 +7,18 @@ struct EditorialView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
-                    ForEach(viewModel.editorialItems) { item in
-                        EditorialCard(item: item)
-                            .padding(.horizontal)
+                    if viewModel.editorialItems.isEmpty {
+                        VStack(spacing: 12) {
+                            ProgressView()
+                            Text("Loading news...")
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.top, 40)
+                    } else {
+                        ForEach(viewModel.editorialItems) { item in
+                            EditorialCard(item: item)
+                                .padding(.horizontal)
+                        }
                     }
                 }
                 .padding(.vertical)
