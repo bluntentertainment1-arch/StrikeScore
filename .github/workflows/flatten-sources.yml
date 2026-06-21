@@ -1,0 +1,106 @@
+name: Flatten Sources Structure
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  flatten:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Check if Sources has subdirectories with .swift files
+        id: check
+        run: |
+          # Count .swift files NOT directly in Sources/
+          NESTED_COUNT=$(find Sources -name "*.swift" -not -path "Sources/*.swift" | wc -l)
+          echo "nested_files=$NESTED_COUNT" >> $GITHUB_OUTPUT
+          echo "Found $NESTED_COUNT .swift files in subdirectories"
+      
+      - name: Flatten Sources folder
+        if: steps.check.outputs.nested_files != '0'
+        run: |
+          # Move all .swift files from subdirectories to Sources root
+          find Sources -name "*.swift" -not -path "Sources/*.swift" -exec mv {} Sources/ \;
+          
+          # Remove empty directories
+          find Sources -type d -empty -delete
+          
+          # Verify
+          echo "Files in Sources/:"
+          ls Sources/*.swift
+          echo "Total: $(ls Sources/*.swift | wc -l) files"
+      
+      - name: Update project.yml to simple structure
+        if: steps.check.outputs.nested_files != '0'
+        run: |
+          cat > project.yml << 'EOF'
+          name: StrikeScore
+          targets:
+            StrikeScore:
+              type: application
+              platform: iOS
+              deploymentTarget: '16.0'
+              sources:
+                - Sources
+              resources:
+                - Resources
+              dependencies:
+                - framework: MessageUI.framework
+                  embed: false
+                - sdk: UserNotifications.framework
+                - sdk: StoreKit.framework
+              settings:
+                base:
+                  INFOPLIST_FILE: Sources/Info.plist
+                  PRODUCT_BUNDLE_IDENTIFIER: com.kidblunt.strikescore
+                  PRODUCT_NAME: StrikeScore
+                  CURRENT_PROJECT_VERSION: '1'
+                  MARKETING_VERSION: '1.0.0'
+                  BUNDLE_DISPLAY_NAME: StrikeScore
+                  IPHONEOS_DEPLOYMENT_TARGET: '16.0'
+                  EXECUTABLE_NAME: $(PRODUCT_NAME)
+                  ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+                  ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS: 'YES'
+                  INFOPLIST_KEY_PrivacyManifestPath: Resources/PrivacyInfo.xcprivacy
+                  SWIFT_VERSION: '5.0'
+                  TARGETED_DEVICE_FAMILY: '1'
+              preBuildScripts:
+                - name: Run CocoaPods
+                  script: |
+                    if [ -f "Podfile" ]; then
+                      pod install
+                    fi
+                  shell: /bin/sh
+                  showEnvVars: true
+          fileGroups:
+            - Sources
+            - Resources
+          options:
+            bundleIdPrefix: com.kidblunt
+            xcodeVersion: '16.2'
+            deploymentTarget: '16.0'
+            usesTabs: false
+            indentWidth: 2
+            tabWidth: 2
+            createIntermediateGroups: true
+          EOF
+      
+      - name: Commit and push changes
+        if: steps.check.outputs.nested_files != '0'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Auto-flatten Sources folder structure for xcodegen compatibility"
+          git push
