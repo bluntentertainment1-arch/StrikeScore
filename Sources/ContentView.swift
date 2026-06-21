@@ -1,28 +1,63 @@
 import SwiftUI
 
 struct ContentView: View {
+    @State private var selectedTab = 0
+    @State private var showMenu = false
+    
     var body: some View {
-        TabView {
-            LiveMatchesView()
-                .tabItem {
-                    Label("Live", systemImage: "sportscourt.fill")
-                }
-
-            GroupStandingsView()
-                .tabItem {
-                    Label("Groups", systemImage: "tablecells.fill")
-                }
-
-            FixturesView()
-                .tabItem {
-                    Label("Fixtures", systemImage: "calendar")
-                }
-
-            MoreView()
-                .tabItem {
-                    Label("More", systemImage: "ellipsis")
-                }
+        ZStack {
+            TabView(selection: $selectedTab) {
+                HomeView()
+                    .tabItem {
+                        Label("Home", systemImage: "house")
+                    }
+                    .tag(0)
+                
+                LiveMatchesView()
+                    .tabItem {
+                        Label("Live", systemImage: "sportscourt")
+                    }
+                    .tag(1)
+                
+                FixturesView()
+                    .tabItem {
+                        Label("Schedule", systemImage: "calendar")
+                    }
+                    .tag(2)
+                
+                EditorialView()
+                    .tabItem {
+                        Label("Explore", systemImage: "compass")
+                    }
+                    .tag(3)
+                
+                FavoritesView()
+                    .tabItem {
+                        Label("Favorites", systemImage: "heart")
+                    }
+                    .tag(4)
+            }
+            .tint(.green)
+            
+            // Side menu overlay
+            if showMenu {
+                SideMenuView(isShowing: $showMenu)
+            }
         }
-        .tint(.green)
+        .overlay(
+            // Hamburger button
+            VStack {
+                HStack {
+                    Button(action: { showMenu.toggle() }) {
+                        Image(systemName: "line.3.horizontal")
+                            .font(.title2)
+                            .foregroundColor(.primary)
+                            .padding()
+                    }
+                    Spacer()
+                }
+                Spacer()
+            }
+        )
     }
 }
