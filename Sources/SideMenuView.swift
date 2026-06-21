@@ -5,12 +5,10 @@ struct SideMenuView: View {
     
     var body: some View {
         ZStack {
-            // Dark background
             Color.black.opacity(0.3)
                 .ignoresSafeArea()
                 .onTapGesture { isShowing = false }
             
-            // Menu panel
             HStack {
                 VStack(alignment: .leading, spacing: 0) {
                     Text("App Setting")
@@ -64,7 +62,12 @@ struct SideMenuView: View {
     private func shareApp() {
         let url = URL(string: "https://apps.apple.com/app/strikescore")!
         let activityVC = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-        UIApplication.shared.windows.first?.rootViewController?.present(activityVC, animated: true)
+        
+        // FIX: Use modern window scene API (iOS 15+)
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let rootViewController = windowScene.windows.first?.rootViewController {
+            rootViewController.present(activityVC, animated: true)
+        }
     }
     
     private func openAppStore() {
