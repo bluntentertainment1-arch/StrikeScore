@@ -8,6 +8,8 @@ struct FeaturedMatch: Identifiable, Codable {
     let awayFlag: String
     let competition: String
     let matchDate: String
+    let headline: String
+    let subheadline: String
     let isLive: Bool
     let priority: Int
     let active: Bool
@@ -15,7 +17,6 @@ struct FeaturedMatch: Identifiable, Codable {
     var isVisible: Bool {
         guard active else { return false }
         if isLive { return true }
-        // Don't show matches that ended more than 1 day ago
         let formatter = ISO8601DateFormatter()
         if let date = formatter.date(from: matchDate) {
             let oneDayAgo = Calendar.current.date(byAdding: .day, value: -1, to: Date())!
