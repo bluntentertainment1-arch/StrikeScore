@@ -7,10 +7,9 @@ enum AppConstants {
     static let contactEmail = "bluntentertainment1@gmail.com"
     static let appVersion = "1.0.0"
 
-    static let footballDataBaseURL = "https://api.football-data.org/v4"
-    static let defaultCompetition = "CL"  // Use Champions League (free tier)
+    static let footballDataBaseURL = "https://v3.football.api-sports.io"
+    static let defaultCompetition = "1"  // World Cup = league ID 1
 
-    // CORRECTED - URLs were swapped
     static let excelFeaturedURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTmtdMDK95ZVLkq9pmki8FgNmD2_PeeBzUT5QHrXO6LyyAzddBVrzThp1RmKfo8g-wW9Cw-aQFRL_rI/pub?gid=1758911275&single=true&output=csv"
     static let excelEditorialURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTmtdMDK95ZVLkq9pmki8FgNmD2_PeeBzUT5QHrXO6LyyAzddBVrzThp1RmKfo8g-wW9Cw-aQFRL_rI/pub?gid=600659522&single=true&output=csv"
     static let excelConfigURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTmtdMDK95ZVLkq9pmki8FgNmD2_PeeBzUT5QHrXO6LyyAzddBVrzThp1RmKfo8g-wW9Cw-aQFRL_rI/pub?gid=792685785&single=true&output=csv"
