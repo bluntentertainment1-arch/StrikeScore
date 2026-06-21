@@ -2,80 +2,101 @@ import SwiftUI
 
 struct SideMenuView: View {
     @Binding var isShowing: Bool
-    
+    @State private var showAbout = false
+    @State private var showContact = false
+    @State private var showTerms = false
+    @State private var showPrivacy = false
+
     var body: some View {
         ZStack {
             Color.black.opacity(0.3)
                 .ignoresSafeArea()
                 .onTapGesture { isShowing = false }
-            
+
             HStack {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text("App Setting")
+                    Text("App Settings")
                         .font(.title2)
                         .fontWeight(.bold)
                         .padding(.top, 60)
                         .padding(.horizontal, 20)
                         .padding(.bottom, 30)
-                    
+
                     MenuItem(icon: "square.and.arrow.up", title: "Share App") {
                         shareApp()
                     }
-                    
+
                     MenuItem(icon: "star", title: "Give Us Rating") {
                         openAppStore()
                     }
-                    
+
                     MenuItem(icon: "arrow.clockwise", title: "Check for Updates") {
                         checkForUpdates()
                     }
-                    
+
                     MenuItem(icon: "envelope", title: "Contact Us") {
-                        // Navigate to contact
+                        showContact = true
                     }
-                    
+
                     MenuItem(icon: "doc.text", title: "Terms & Conditions") {
-                        // Navigate to terms
+                        showTerms = true
                     }
-                    
-                    MenuItem(icon: "shield", title: "Privacy And Policy") {
-                        // Navigate to privacy
+
+                    MenuItem(icon: "shield", title: "Privacy Policy") {
+                        showPrivacy = true
                     }
-                    
+
+                    MenuItem(icon: "info.circle", title: "About Us") {
+                        showAbout = true
+                    }
+
                     Spacer()
-                    
+
                     Button("Close Drawer") {
                         isShowing = false
                     }
                     .font(.headline)
-                    .foregroundColor(.blue)
+                    .foregroundColor(.green)
                     .padding()
                 }
                 .frame(width: 280)
                 .background(Color(.systemBackground))
-                
+
                 Spacer()
             }
         }
+        .sheet(isPresented: $showAbout) {
+            AboutUsView()
+        }
+        .sheet(isPresented: $showContact) {
+            ContactUsView()
+        }
+        .sheet(isPresented: $showTerms) {
+            TermsView()
+        }
+        .sheet(isPresented: $showPrivacy) {
+            PrivacyPolicyView()
+        }
     }
-    
+
     private func shareApp() {
         let url = URL(string: "https://apps.apple.com/app/strikescore")!
         let activityVC = UIActivityViewController(activityItems: [url], applicationActivities: nil)
-        
-        // FIX: Use modern window scene API (iOS 15+)
+
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
            let rootViewController = windowScene.windows.first?.rootViewController {
             rootViewController.present(activityVC, animated: true)
         }
     }
-    
+
     private func openAppStore() {
-        // Open app store for rating
+        if let url = URL(string: "https://apps.apple.com/app/idYOUR_APP_ID") {
+            UIApplication.shared.open(url)
+        }
     }
-    
+
     private func checkForUpdates() {
-        // Check app version against server
+        // Implementation for checking updates
     }
 }
 
@@ -83,7 +104,7 @@ struct MenuItem: View {
     let icon: String
     let title: String
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
             HStack {
@@ -91,9 +112,9 @@ struct MenuItem: View {
                     .frame(width: 24)
                 Text(title)
                 Spacer()
-                Image(systemName: "arrow.up.right")
+                Image(systemName: "chevron.right")
                     .font(.caption)
-                    .foregroundColor(.blue)
+                    .foregroundColor(.green)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
