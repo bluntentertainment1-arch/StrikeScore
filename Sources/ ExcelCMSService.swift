@@ -15,6 +15,8 @@ class ExcelCMSService {
 
         let (data, _) = try await URLSession.shared.data(from: url)
         let csvString = String(data: data, encoding: .utf8) ?? ""
+        
+        AppLogger.shared.log("Featured CSV raw (first 500 chars): \(String(csvString.prefix(500)))")
 
         return parseFeaturedMatches(csv: csvString)
     }
@@ -26,43 +28,54 @@ class ExcelCMSService {
 
         let (data, _) = try await URLSession.shared.data(from: url)
         let csvString = String(data: data, encoding: .utf8) ?? ""
+        
+        AppLogger.shared.log("Editorial CSV raw (first 500 chars): \(String(csvString.prefix(500)))")
 
         return parseEditorial(csv: csvString)
     }
 
     private func parseFeaturedMatches(csv: String) -> [FeaturedMatch] {
         var results: [FeaturedMatch] = []
-        let rows = csv.components(separatedBy: "\n")
+        let rows = csv.components(separatedBy: CharacterSet.newlines)
 
-        guard rows.count > 1 else { return results }
+        guard rows.count > 1 else { 
+            AppLogger.shared.log("ERROR: Featured CSV only has \(rows.count) rows")
+            return results 
+        }
 
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
+        AppLogger.shared.log("Featured CSV header: \(rows[0])")
+        AppLogger.shared.log("Featured CSV total rows: \(rows.count)")
 
         for i in 1..<rows.count {
             let row = rows[i].trimmingCharacters(in: .whitespacesAndNewlines)
             guard !row.isEmpty else { continue }
 
             let columns = parseCSVRow(row)
-            guard columns.count >= 10 else { continue }
-
-            let showUntil = dateFormatter.date(from: columns[8]) ?? Date.distantFuture
+            
+            // REQUIRE 12 columns
+            guard columns.count >= 12 else { 
+                AppLogger.shared.log("WARNING: Row \(i) has only \(columns.count) columns, skipping. Content: \(row)")
+                continue 
+            }
 
             let match = FeaturedMatch(
                 id: columns[0],
-                competition: columns[1],
-                homeTeam: columns[2],
-                awayTeam: columns[3],
-                matchDate: columns[4],
-                headline: columns[5],
-                subheadline: columns[6],
-                priority: Int(columns[7]) ?? 0,
-                showUntil: showUntil,
-                active: columns[9].lowercased() == "true"
+                homeTeam: columns[1],
+                awayTeam: columns[2],
+                homeFlag: columns[3],
+                awayFlag: columns[4],
+                competition: columns[5],
+                matchDate: columns[6],
+                headline: columns[7],
+                subheadline: columns[8],
+                isLive: columns[9].lowercased() == "true",
+                priority: Int(columns[10]) ?? 0,
+                active: columns[11].lowercased() == "true"
             )
 
             if match.isVisible {
                 results.append(match)
+                AppLogger.shared.log("Added featured match: \(match.homeTeam) vs \(match.awayTeam)")
             }
         }
 
@@ -71,16 +84,24 @@ class ExcelCMSService {
 
     private func parseEditorial(csv: String) -> [EditorialItem] {
         var results: [EditorialItem] = []
-        let rows = csv.components(separatedBy: "\n")
+        let rows = csv.components(separatedBy: CharacterSet.newlines)
 
-        guard rows.count > 1 else { return results }
+        guard rows.count > 1 else { 
+            AppLogger.shared.log("ERROR: Editorial CSV only has \(rows.count) rows")
+            return results 
+        }
+
+        AppLogger.shared.log("Editorial CSV header: \(rows[0])")
 
         for i in 1..<rows.count {
             let row = rows[i].trimmingCharacters(in: .whitespacesAndNewlines)
             guard !row.isEmpty else { continue }
 
             let columns = parseCSVRow(row)
-            guard columns.count >= 5 else { continue }
+            guard columns.count >= 5 else { 
+                AppLogger.shared.log("WARNING: Editorial row \(i) has only \(columns.count) columns, skipping")
+                continue 
+            }
 
             let item = EditorialItem(
                 id: columns[0],
