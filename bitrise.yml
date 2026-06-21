@@ -1,0 +1,114 @@
+format_version: "11"
+default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
+
+project_type: ios
+
+trigger_map:
+- push_branch: main
+  workflow: deploy
+- push_branch: develop
+  workflow: primary
+- pull_request_source_branch: "*"
+  workflow: primary
+
+workflows:
+  primary:
+    description: |
+      Build and test the app. Runs on PRs and develop branch.
+    steps:
+    - activate-ssh-key@4:
+        run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
+    - git-clone@8: {}
+    - cache-pull@2: {}
+    - script@1:
+        title: Install XcodeGen
+        inputs:
+        - content: |
+            #!/bin/bash
+            set -ex
+            if ! command -v xcodegen &> /dev/null; then
+              brew install xcodegen
+            fi
+            xcodegen --version
+    - script@1:
+        title: Generate Xcode Project
+        inputs:
+        - content: |
+            #!/bin/bash
+            set -ex
+            xcodegen generate
+            ls -la *.xcodeproj
+    - script@1:
+        title: Install CocoaPods
+        inputs:
+        - content: |
+            #!/bin/bash
+            set -ex
+            gem install cocoapods
+            pod install --repo-update
+    - xcode-build-for-test@2:
+        inputs:
+        - project_path: StrikeScore.xcworkspace
+        - scheme: StrikeScore
+        - destination: platform=iOS Simulator,name=iPhone 15,OS=latest
+    - cache-push@2: {}
+
+  deploy:
+    description: |
+      Build, archive and deploy to App Store Connect. Runs on main branch.
+    steps:
+    - activate-ssh-key@4:
+        run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
+    - git-clone@8: {}
+    - cache-pull@2: {}
+    - script@1:
+        title: Install XcodeGen
+        inputs:
+        - content: |
+            #!/bin/bash
+            set -ex
+            if ! command -v xcodegen &> /dev/null; then
+              brew install xcodegen
+            fi
+            xcodegen --version
+    - script@1:
+        title: Generate Xcode Project
+        inputs:
+        - content: |
+            #!/bin/bash
+            set -ex
+            xcodegen generate
+            ls -la *.xcodeproj
+    - script@1:
+        title: Install CocoaPods
+        inputs:
+        - content: |
+            #!/bin/bash
+            set -ex
+            gem install cocoapods
+            pod install --repo-update
+    - xcode-archive@4:
+        inputs:
+        - project_path: StrikeScore.xcworkspace
+        - scheme: StrikeScore
+        - configuration: Release
+        - distribution_method: app-store
+        - export_method: app-store
+    - deploy-to-itunesconnect-application-loader@1:
+        inputs:
+        - app_id: "$APP_ID"
+        - password: "$APPSTORE_CONNECT_PASSWORD"
+        - itunescon_user: "$APPSTORE_CONNECT_USERNAME"
+    - cache-push@2: {}
+
+app:
+  envs:
+  - BITRISE_PROJECT_PATH: StrikeScore.xcworkspace
+    opts:
+      is_expand: false
+  - BITRISE_SCHEME: StrikeScore
+    opts:
+      is_expand: false
+  - BITRISE_EXPORT_METHOD: app-store
+    opts:
+      is_expand: false

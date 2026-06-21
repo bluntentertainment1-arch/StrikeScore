@@ -1,0 +1,38 @@
+name: StrikeScore
+targets:
+  StrikeScore:
+    type: application
+    platform: iOS
+    deploymentTarget: '16.0'
+    sources:
+    - Sources
+    - Resources/Assets.xcassets
+    resources:
+    - Resources
+    - Resources/Assets.xcassets
+    dependencies: []
+    settings:
+      base:
+        INFOPLIST_FILE: Sources/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.kidblunt.strikescore
+        PRODUCT_NAME: StrikeScore
+        CURRENT_PROJECT_VERSION: '1'
+        MARKETING_VERSION: 1.0.0
+        BUNDLE_DISPLAY_NAME: StrikeScore
+        IPHONEOS_DEPLOYMENT_TARGET: '16.0'
+        EXECUTABLE_NAME: $(PRODUCT_NAME)
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS: 'YES'
+        INFOPLIST_KEY_PrivacyManifestPath: Resources/PrivacyInfo.xcprivacy
+fileGroups:
+- Sources
+- Resources
+- Resources/Assets.xcassets
+options:
+  bundleIdPrefix: com.kidblunt
+  xcodeVersion: '16.2'
+  deploymentTarget: '16.0'
+  usesTabs: false
+  indentWidth: 2
+  tabWidth: 2
+  createIntermediateGroups: true
