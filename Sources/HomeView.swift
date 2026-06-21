@@ -2,16 +2,17 @@ import SwiftUI
 
 struct HomeView: View {
     @StateObject private var viewModel = MatchesViewModel()
+    @State private var selectedDate = 0
     
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
-                    // Search bar placeholder
+                    // Search bar
                     HStack {
                         Image(systemName: "magnifyingglass")
                             .foregroundColor(.secondary)
-                        Text("Search")
+                        Text("Search teams, matches...")
                             .foregroundColor(.secondary)
                         Spacer()
                     }
@@ -24,19 +25,37 @@ struct HomeView: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 12) {
                             ForEach(0..<7) { day in
-                                DateCell(day: day)
+                                DateCell(day: day, isSelected: day == selectedDate) {
+                                    selectedDate = day
+                                }
                             }
                         }
                         .padding(.horizontal)
                     }
                     
                     // Featured matches grid
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                        ForEach(viewModel.featuredMatches) { match in
-                            FeaturedMatchCard(featured: match)
+                    if viewModel.featuredMatches.isEmpty {
+                        VStack(spacing: 12) {
+                            ProgressView()
+                            Text("Loading matches...")
+                                .foregroundColor(.secondary)
                         }
+                        .padding(.top, 40)
+                    } else {
+                        LazyVGrid(
+                            columns: [
+                                GridItem(.flexible()),
+                                GridItem(.flexible()),
+                                GridItem(.flexible())
+                            ],
+                            spacing: 12
+                        ) {
+                            ForEach(viewModel.featuredMatches) { match in
+                                FeaturedMatchCard(featured: match)
+                            }
+                        }
+                        .padding(.horizontal)
                     }
-                    .padding(.horizontal)
                 }
                 .padding(.vertical)
             }
@@ -51,26 +70,31 @@ struct HomeView: View {
 
 struct DateCell: View {
     let day: Int
+    let isSelected: Bool
+    let action: () -> Void
     
     var body: some View {
         let date = Calendar.current.date(byAdding: .day, value: day, to: Date())!
         let formatter = DateFormatter()
+        formatter.dateFormat = "EEE"
+        let weekday = formatter.string(from: date)
+        formatter.dateFormat = "d"
+        let dayNum = formatter.string(from: date)
         
-        VStack(spacing: 4) {
-            Text(formatter.shortWeekdaySymbols[Calendar.current.component(.weekday, from: date) - 1])
-                .font(.caption)
-                .foregroundColor(.secondary)
-            Text("\(Calendar.current.component(.day, from: date))")
-                .font(.title3)
-                .fontWeight(.bold)
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Text(weekday)
+                    .font(.caption)
+                    .foregroundColor(isSelected ? .white : .secondary)
+                Text(dayNum)
+                    .font(.title3)
+                    .fontWeight(.bold)
+                    .foregroundColor(isSelected ? .white : .primary)
+            }
+            .frame(width: 60, height: 70)
+            .background(isSelected ? Color.blue : Color(.systemGray6))
+            .cornerRadius(12)
         }
-        .frame(width: 60, height: 70)
-        .background(day == 0 ? Color.blue.opacity(0.1) : Color(.systemGray6))
-        .cornerRadius(12)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(day == 0 ? Color.blue : Color.clear, lineWidth: 2)
-        )
     }
 }
 
@@ -79,8 +103,7 @@ struct FeaturedMatchCard: View {
     
     var body: some View {
         VStack(spacing: 8) {
-            // Home team flag placeholder
-            AsyncImage(url: URL(string: "https://flagcdn.com/w80/\(featured.homeTeam.lowercased().prefix(2)).png")) { image in
+            AsyncImage(url: featured.homeFlagURL) { image in
                 image.resizable().scaledToFit()
             } placeholder: {
                 Circle().fill(Color.gray.opacity(0.3))
@@ -92,24 +115,37 @@ struct FeaturedMatchCard: View {
                 .font(.caption)
                 .lineLimit(1)
             
-            if featured.competition == "LIVE" {
+            if featured.isLive {
                 HStack(spacing: 4) {
                     Image(systemName: "play.fill")
                         .font(.caption2)
+                        .foregroundColor(.red)
                     Text("LIVE")
                         .font(.caption2)
                         .fontWeight(.bold)
+                        .foregroundColor(.red)
                 }
-                .foregroundColor(.red)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 2)
                 .background(Color.red.opacity(0.1))
                 .cornerRadius(8)
             } else {
-                Text(featured.matchDate)
+                Text("vs")
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
+            
+            AsyncImage(url: featured.awayFlagURL) { image in
+                image.resizable().scaledToFit()
+            } placeholder: {
+                Circle().fill(Color.gray.opacity(0.3))
+            }
+            .frame(width: 40, height: 40)
+            .clipShape(Circle())
+            
+            Text(featured.awayTeam)
+                .font(.caption)
+                .lineLimit(1)
             
             Text(featured.competition)
                 .font(.caption2)
