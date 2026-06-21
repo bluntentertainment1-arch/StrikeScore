@@ -1,19 +1,19 @@
 import Foundation
 
 enum AppConfig {
-    static let appName = "StrikeScore"
-    static let companyName = "Blunt Entertainment"
-    static let copyright = "© 2026 Blunt Entertainment. All rights reserved."
-    static let contactEmail = "bluntentertainment1@gmail.com"
-    static let appVersion = "1.0.0"
+    static let appName = AppConstants.appName
+    static let companyName = AppConstants.companyName
+    static let copyright = AppConstants.copyright
+    static let contactEmail = AppConstants.contactEmail
+    static let appVersion = AppConstants.appVersion
 
-    static let footballDataBaseURL = "https://api.football-data.org/v4"
-    static let defaultCompetition = "WC"
+    static let footballDataBaseURL = AppConstants.footballDataBaseURL
+    static let defaultCompetition = AppConstants.defaultCompetition
 
-    static let excelFeaturedURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTmtdMDK95ZVLkq9pmki8FgNmD2_PeeBzUT5QHrXO6LyyAzddBVrzThp1RmKfo8g-wW9Cw-aQFRL_rI/pub?gid=792685785&single=true&output=csv"
-    static let excelEditorialURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTmtdMDK95ZVLkq9pmki8FgNmD2_PeeBzUT5QHrXO6LyyAzddBVrzThp1RmKfo8g-wW9Cw-aQFRL_rI/pub?gid=600659522&single=true&output=csv"
-    static let excelConfigURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTmtdMDK95ZVLkq9pmki8FgNmD2_PeeBzUT5QHrXO6LyyAzddBVrzThp1RmKfo8g-wW9Cw-aQFRL_rI/pub?gid=1758911275&single=true&output=csv"
+    static let excelFeaturedURL = AppConstants.excelFeaturedURL
+    static let excelEditorialURL = AppConstants.excelEditorialURL
+    static let excelConfigURL = AppConstants.excelConfigURL
 
-    static let apiPollInterval: TimeInterval = 30
-    static let excelRefreshInterval: TimeInterval = 300 // 5 minutes
+    static let apiPollInterval: TimeInterval = AppConstants.apiPollInterval
+    static let excelRefreshInterval: TimeInterval = AppConstants.excelRefreshInterval
 }
