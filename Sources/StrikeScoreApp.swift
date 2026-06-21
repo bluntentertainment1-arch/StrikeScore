@@ -7,7 +7,7 @@ struct StrikeScoreApp: App {
 
     var body: some Scene {
         WindowGroup {
-            SplashScreenView()
+            OnboardingView()
         }
     }
 }
