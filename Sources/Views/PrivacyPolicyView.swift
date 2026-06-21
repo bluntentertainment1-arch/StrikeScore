@@ -14,7 +14,7 @@ struct PrivacyPolicyView: View {
                         .foregroundColor(.secondary)
 
                     Group {
-                        policySection(title: "1. Introduction", content: "StrikeScore ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application.")
+                        policySection(title: "1. Introduction", content: "StrikeScore (\"we,\" \"our,\" or \"us\") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application.")
 
                         policySection(title: "2. Information We Collect", content: "We may collect information about you in various ways, including: Usage Data (how you interact with the app), Device Information (device type, OS version), and Advertising Data (for personalized ads via Google AdMob).")
 
