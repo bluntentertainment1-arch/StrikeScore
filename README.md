@@ -112,6 +112,7 @@ Set these environment variables in Bitrise:
 
 ## Architecture
 
+
 ```
 StrikeScore/
 ├── Sources/
