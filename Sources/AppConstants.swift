@@ -2,8 +2,8 @@ import Foundation
 
 enum AppConstants {
     static let appName = "StrikeScore"
-    static let companyName = "kidblunt"
-    static let copyright = "© 2026 kidblunt. All rights reserved."
+    static let companyName = "Blunt Entertainment"
+    static let copyright = "© 2026 Blunt Entertainment. All rights reserved."
     static let contactEmail = "bluntentertainment1@gmail.com"
     static let appVersion = "1.0.0"
 
