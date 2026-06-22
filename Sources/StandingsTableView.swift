@@ -28,7 +28,7 @@ struct StandingsTableView: View {
 
                 ScrollView {
                     LazyVStack(spacing: 0) {
-                        ForEach(tableEntries.indices, id: \.self) { index in
+                        ForEach(0..<tableEntries.count, id: \.self) { index in
                             let entry = tableEntries[index]
                             HStack(spacing: 0) {
                                 Text(entry.intRank)
