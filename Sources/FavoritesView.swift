@@ -1,20 +1,21 @@
 import SwiftUI
 
 struct FavoritesView: View {
-    @StateObject private var favoritesManager = FavoritesManager.shared
+    @ObservedObject private var favoritesManager = FavoritesManager.shared
     @State private var selectedMatch: FeaturedMatch? = nil
     
     var body: some View {
         NavigationStack {
             Group {
-                if favoritesManager.favoriteMatches.isEmpty {
+                // Fixed: Reading base array lists directly to clean up DynamicMember wrappers
+                if favoritesManager.favorites.isEmpty {
                     VStack(spacing: 12) {
                         Image(systemName: "star.slash")
                             .font(.system(size: 48))
                             .foregroundColor(.secondary)
                         Text("No Favorites Added Yet")
                             .font(.headline)
-                        Text("Tap the star icon on any match or team fixture card to add them here for quick access.")
+                        Text("Tap the star icon on any fixture card to add them here.")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -22,14 +23,13 @@ struct FavoritesView: View {
                     }
                 } else {
                     List {
-                        ForEach(favoritesManager.favoriteMatches) { match in
-                            MatchCardView(match: match)
-                                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                                .listRowSeparator(.hidden)
-                                .listRowBackground(Color.clear)
-                                .onTapGesture {
-                                    selectedMatch = match
-                                }
+                        ForEach(favoritesManager.favorites) { match in
+                            MatchCardView(match: match, onTap: {
+                                selectedMatch = match
+                            })
+                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
                         }
                         .onDelete(perform: deleteFavorite)
                     }
@@ -45,8 +45,8 @@ struct FavoritesView: View {
     
     private func deleteFavorite(at offsets: IndexSet) {
         for index in offsets {
-            let match = favoritesManager.favoriteMatches[index]
-            favoritesManager.toggleFavorite(match: match)
+            let match = favoritesManager.favorites[index]
+            favoritesManager.toggle(match) // Fixed: Stripped erroneous label parameter
         }
     }
 }
