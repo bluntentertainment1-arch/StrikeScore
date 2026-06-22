@@ -3,91 +3,75 @@ import SwiftUI
 struct FeaturedMatchDetailView: View {
     let match: FeaturedMatch
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var favoritesManager = FavoritesManager.shared
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 24) {
+                VStack(spacing: 16) {
                     
-                    // Core Match Scoreboard Banner
-                    VStack(spacing: 16) {
+                    // Compact Scoreboard Banner Row
+                    VStack(spacing: 12) {
                         Text(match.competition)
-                            .font(.caption)
-                            .fontWeight(.bold)
+                            .font(.system(size: 11, weight: .bold))
                             .foregroundColor(.secondary)
                         
-                        HStack(spacing: 20) {
-                            VStack(spacing: 8) {
+                        HStack(spacing: 12) {
+                            // Home Team
+                            VStack(spacing: 6) {
                                 TeamLogoView(
                                     teamName: match.homeTeam,
                                     localSpreadsheetURL: match.homeFlagURL,
                                     fallbackColor: match.homeFallbackColor,
                                     initials: match.getTeamInitials(from: match.homeTeam),
-                                    size: 60
+                                    size: 44
                                 )
                                 Text(match.homeTeam)
-                                    .font(.subheadline)
-                                    .fontWeight(.bold)
+                                    .font(.system(size: 13, weight: .bold))
                                     .multilineTextAlignment(.center)
+                                    .lineLimit(2)
+                                    .minimumScaleFactor(0.85)
                             }
                             .frame(maxWidth: .infinity)
                             
-                            // Prominent Score Display
+                            // Center Score Block
                             Text(match.displayScore)
-                                .font(.system(size: 36, weight: .black, design: .rounded))
+                                .font(.system(size: 26, weight: .black, design: .rounded))
+                                .frame(width: 70)
                             
-                            VStack(spacing: 8) {
+                            // Away Team
+                            VStack(spacing: 6) {
                                 TeamLogoView(
                                     teamName: match.awayTeam,
                                     localSpreadsheetURL: match.awayFlagURL,
                                     fallbackColor: match.awayFallbackColor,
                                     initials: match.getTeamInitials(from: match.awayTeam),
-                                    size: 60
+                                    size: 44
                                 )
                                 Text(match.awayTeam)
-                                    .font(.subheadline)
-                                    .fontWeight(.bold)
+                                    .font(.system(size: 13, weight: .bold))
                                     .multilineTextAlignment(.center)
+                                    .lineLimit(2)
+                                    .minimumScaleFactor(0.85)
                             }
                             .frame(maxWidth: .infinity)
                         }
                     }
                     .padding()
-                    .background(Color(.systemGray6).opacity(0.5))
-                    .cornerRadius(20)
-                    .padding(.horizontal)
-                    
-                    // --- DISPLAY ADVERTISEMENT BANNER CONTAINER ---
-                    VStack(spacing: 6) {
-                        // Dynamic frame fallback mapping standard AdMob/Inline display configurations safely
-                        ZStack {
-                            Color(.systemGray5)
-                            
-                            VStack(spacing: 4) {
-                                Image(systemName: "rectangle.inset.filled.and.person.filled")
-                                    .font(.title2)
-                                    .foregroundColor(.secondary)
-                                Text("SPONSORED ADVERTISEMENT")
-                                    .font(.system(size: 10, weight: .bold, design: .monospaced))
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        .frame(height: 70) // Perfect matching allocation for standard banner dimensions
-                        .cornerRadius(12)
-                    }
+                    .background(Color(.systemGray6).opacity(0.6))
+                    .cornerRadius(14)
                     .padding(.horizontal)
 
-                    // Key Match Information Card Section
-                    VStack(alignment: .leading, spacing: 14) {
+                    // Core Meta Details List Container
+                    VStack(alignment: .leading, spacing: 12) {
                         Text("Match Information")
-                            .font(.headline)
+                            .font(.system(size: 15, weight: .bold))
                         
                         Divider()
                         
                         Group {
-                            // Match Status row with explicit live tracking coloring
                             InfoDetailRow(title: "Match Status", value: match.status.uppercased())
-                                .foregroundColor(match.isCurrentlyLive ? .green : .primary)
+                                .foregroundColor(match.isCurrentlyLive ? .red : .primary)
                             
                             InfoDetailRow(title: "Date", value: match.matchDate)
                             InfoDetailRow(title: "Time", value: match.matchTime)
@@ -105,7 +89,7 @@ struct FeaturedMatchDetailView: View {
                     }
                     .padding()
                     .background(Color(.systemGray6))
-                    .cornerRadius(16)
+                    .cornerRadius(14)
                     .padding(.horizontal)
                 }
                 .padding(.vertical)
@@ -113,15 +97,24 @@ struct FeaturedMatchDetailView: View {
             .navigationTitle("Match Details")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button("Close") { dismiss() }
+                }
+                
+                // Persistent Top Bar Favorite Button Toggle Engine
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        favoritesManager.toggleFavorite(match.id)
+                    }) {
+                        Image(systemName: favoritesManager.isFavorited(match.id) ? "heart.fill" : "heart")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(favoritesManager.isFavorited(match.id) ? .red : .primary)
+                    }
                 }
             }
         }
     }
 }
-
-// MARK: - Helper Layout Components
 
 struct InfoDetailRow: View {
     let title: String
@@ -130,13 +123,11 @@ struct InfoDetailRow: View {
     var body: some View {
         HStack {
             Text(title)
-                .font(.system(size: 14, weight: .medium))
                 .foregroundColor(.secondary)
             Spacer()
             Text(value)
-                .font(.system(size: 14, weight: .semibold))
-                .multilineTextAlignment(.trailing)
+                .fontWeight(.semibold)
         }
-        .padding(.vertical, 4)
+        .font(.system(size: 13))
     }
 }
