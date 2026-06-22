@@ -1,6 +1,5 @@
 import Foundation
 import Combine
-import SwiftUI
 
 @MainActor
 class MatchesViewModel: ObservableObject {
@@ -14,15 +13,6 @@ class MatchesViewModel: ObservableObject {
     // Global arrays filtered automatically for Live layouts safely handling both tags
     var liveMatches: [FeaturedMatch] {
         featuredMatches.filter { $0.isLive || $0.status.uppercased() == "LIVE" || $0.status.uppercased() == "IN_PLAY" }
-    }
-
-    /// High-Fidelity Query Parsing Filters targeting active text entries without causing struct field mismatch errors
-    func filteredMatches(contains query: String) -> [FeaturedMatch] {
-        guard !query.isEmpty else { return featuredMatches }
-        return featuredMatches.filter { match in
-            match.homeTeam.localizedCaseInsensitiveContains(query) ||
-            match.awayTeam.localizedCaseInsensitiveContains(query)
-        }
     }
 
     func loadCMSData() async {
