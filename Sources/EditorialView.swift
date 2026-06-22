@@ -30,21 +30,17 @@ struct EditorialView: View {
                                         Text(article.headline)
                                             .font(.headline)
                                             .foregroundColor(.primary)
-                                            .lineLimit(2)
                                             .multilineTextAlignment(.leading)
-                                        
                                         Text(article.body)
                                             .font(.subheadline)
                                             .foregroundColor(.secondary)
                                             .lineLimit(2)
                                             .multilineTextAlignment(.leading)
-                                        
-                                        Text(article.datePosted)
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                            .padding(.top, 2)
                                     }
                                     Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
                                 }
                                 .padding()
                                 .background(Color(.systemGray6))
@@ -57,59 +53,57 @@ struct EditorialView: View {
                 }
                 .padding(.vertical)
             }
-            .navigationTitle("News & Updates")
+            .navigationTitle("Explore")
+            // Navigation destination dynamically swaps your view details without breaking stack context
+            .navigationDestination(item: $selectedArticle) { article in
+                ArticleDetailView(article: article, allArticles: viewModel.editorialItems, onSelectArticle: { nextArticle in
+                    selectedArticle = nextArticle // Changes pages natively on tap!
+                })
+            }
             .task {
                 await viewModel.loadCMSData()
-            }
-            // Passes the complete collection to cleanly generate randomized subsets
-            .sheet(item: $selectedArticle) { article in
-                ArticleDetailView(article: article, allArticles: viewModel.editorialItems)
             }
         }
     }
 }
 
-// --- DETAIL SHEET COMPONENT WITH RANDOMIZED FOOTER SYSTEM ---
 struct ArticleDetailView: View {
     let article: EditorialItem
     let allArticles: [EditorialItem]
-    @Environment(\.dismiss) private var dismiss
+    var onSelectArticle: (EditorialItem) -> Void
     
-    /// Filters out the current selection, completely shuffles the pool, and grabs 3 articles
     var randomizedRelatedStories: [EditorialItem] {
-        let secondaryStories = allArticles.filter { $0.id != article.id }
-        return Array(secondaryStories.shuffled().prefix(3))
+        allArticles.filter { $0.id != article.id }.shuffled().prefix(3).map { $0 }
     }
     
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    Text(article.headline)
-                        .font(.title2)
-                        .fontWeight(.bold)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text(article.headline)
+                    .font(.title)
+                    .fontWeight(.bold)
+                
+                Text("Posted: \(article.datePosted)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                Divider()
+                
+                Text(article.fullContent.isEmpty ? article.body : article.fullContent)
+                    .font(.body)
+                    .lineSpacing(6)
+                
+                Divider().padding(.vertical)
+                
+                // Related Stories
+                if !randomizedRelatedStories.isEmpty {
+                    Text("Related Stories")
+                        .font(.headline)
+                        .padding(.bottom, 4)
                     
-                    Text("Published on \(article.datePosted)")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    
-                    Divider()
-                    
-                    Text(article.fullContent)
-                        .font(.body)
-                        .lineSpacing(6)
-                    
-                    Divider().padding(.vertical, 8)
-                    
-                    // --- UNIQUE RANDOMIZED RECENT CORNER ---
-                    if !randomizedRelatedStories.isEmpty {
-                        Text("Related Stories")
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
-                            .foregroundColor(.primary)
-                            .padding(.bottom, 4)
-                        
-                        VStack(spacing: 12) {
-                            ForEach(randomizedRelatedStories) { story in
+                    VStack(spacing: 12) {
+                        ForEach(randomizedRelatedStories) { story in
+                            Button(action: { onSelectArticle(story) }) { // Updates action binder
                                 VStack(alignment: .leading, spacing: 6) {
                                     Text(story.headline)
                                         .font(.system(size: 13, weight: .bold))
@@ -126,20 +120,14 @@ struct ArticleDetailView: View {
                                 .background(Color(.systemGray6))
                                 .cornerRadius(12)
                             }
+                            .buttonStyle(PlainButtonStyle())
                         }
                     }
-                    
-                    Spacer()
-                }
-                .padding()
-            }
-            .navigationTitle("Editorial Feed")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") { dismiss() }
                 }
             }
+            .padding()
         }
+        .navigationTitle("Story Details")
+        .navigationBarTitleDisplayMode(.inline)
     }
 }
