@@ -1,8 +1,10 @@
 import SwiftUI
 
 struct StandingsTableView: View {
-    // Fixed: Accessed via singleton pattern to satisfy private protection levels
-    @ObservedObject private var leagueService = LeagueTableService.shared
+    // Fixed: Pointing directly to the shared instanced model reference structure 
+    // to bypass un-conformed wrapper compilation failure points
+    private var leagueService = LeagueTableService.shared
+    @State private var standingsList: [Standing] = []
     @State private var isLoading = false
     
     var body: some View {
@@ -35,8 +37,8 @@ struct StandingsTableView: View {
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 0) {
-                            // Fixed: Using your codebase's matching model structure parameters
-                            ForEach(leagueService.tableRows) { row in
+                            // Fixed: Using explicitly typed local collection stream to clear inference 'C' mismatch
+                            ForEach(standingsList) { row in
                                 HStack(spacing: 0) {
                                     Text("\(row.position)")
                                         .font(.system(size: 14, weight: .semibold, design: .rounded))
@@ -69,7 +71,6 @@ struct StandingsTableView: View {
                                 
                                 Divider()
                                     .padding(.leading, 45)
-                                
                             }
                         }
                     }
@@ -79,6 +80,8 @@ struct StandingsTableView: View {
             .task {
                 isLoading = true
                 await leagueService.fetchTableData()
+                // Safely mapping the internal array structure manually
+                self.standingsList = leagueService.tableRows
                 isLoading = false
             }
         }
