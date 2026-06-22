@@ -3,6 +3,7 @@ import SwiftUI
 struct SplashScreenView: View {
     @State private var isActive = false
     @State private var opacity = 0.0
+    @State private var scale: CGFloat = 0.8
 
     var body: some View {
         if isActive {
@@ -14,6 +15,7 @@ struct SplashScreenView: View {
                 Image(systemName: "sportscourt.fill")
                     .font(.system(size: 80))
                     .foregroundColor(.green)
+                    .scaleEffect(scale)
 
                 Text("StrikeScore")
                     .font(.system(size: 42, weight: .black, design: .rounded))
@@ -33,8 +35,9 @@ struct SplashScreenView: View {
             }
             .opacity(opacity)
             .onAppear {
-                withAnimation(.easeIn(duration: 1.0)) {
+                withAnimation(.easeIn(duration: 0.8)) {
                     opacity = 1.0
+                    scale = 1.0
                 }
 
                 DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
