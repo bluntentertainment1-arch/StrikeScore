@@ -10,7 +10,6 @@ struct HomeView: View {
     
     private var targetFilteringDate: Date {
         Calendar.current.date(byAdding: .day, value: selectedDate, to: Date())!
-            .addingTimeInterval(TimeInterval(Calendar.current.timeZone.secondsFromGMT()))
     }
 
     // Filter only ongoing active live matches for the prominent top carousel
@@ -123,6 +122,58 @@ struct HomeView: View {
     }
 }
 
+// MARK: - FIXED: Added Missing DateBubbleView Subcomponent
+struct DateBubbleView: View {
+    let day: Int
+    let isSelected: Bool
+    let action: () -> Void
+
+    var dateLabel: String {
+        let targetDate = Calendar.current.date(byAdding: .day, value: day, to: Date())!
+        let formatter = DateFormatter()
+        formatter.dateFormat = "d"
+        return formatter.string(from: targetDate)
+    }
+
+    var dayName: String {
+        if day == 0 { return "TODAY" }
+        let targetDate = Calendar.current.date(byAdding: .day, value: day, to: Date())!
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEE"
+        return formatter.string(from: targetDate).uppercased()
+    }
+    
+    var monthName: String {
+        let targetDate = Calendar.current.date(byAdding: .day, value: day, to: Date())!
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM"
+        return formatter.string(from: targetDate)
+    }
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 3) {
+                Text(dayName)
+                    .font(.system(size: 9, weight: .bold))
+                    .tracking(0.5)
+                Text("\(dateLabel) \(monthName)")
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+            }
+            .padding(.vertical, 10)
+            .padding(.horizontal, 14)
+            .frame(minWidth: 76)
+            .background(isSelected ? Color.green : Color.clear)
+            .foregroundColor(isSelected ? .white : .primary)
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isSelected ? Color.clear : Color(.systemGray4), lineWidth: isSelected ? 0 : 1)
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
 // MARK: - Premium Horizontal Live Card for Home Layout
 struct HomeLiveCarouselCard: View {
     let match: FeaturedMatch
@@ -135,7 +186,7 @@ struct HomeLiveCarouselCard: View {
                 .lineLimit(1)
             
             HStack(spacing: 16) {
-                // Home Team Focus
+                // Home Team
                 VStack(spacing: 6) {
                     TeamLogoView(
                         teamName: match.homeTeam,
@@ -160,7 +211,7 @@ struct HomeLiveCarouselCard: View {
                         .foregroundColor(.red)
                 }
                 
-                // Away Team Focus
+                // Away Team
                 VStack(spacing: 6) {
                     TeamLogoView(
                         teamName: match.awayTeam,
