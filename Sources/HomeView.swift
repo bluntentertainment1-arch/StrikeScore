@@ -8,13 +8,18 @@ struct HomeView: View {
     @State private var selectedDate = 0
     @State private var selectedMatch: FeaturedMatch? = nil
     @State private var selectedArticleFromSearch: EditorialItem? = nil
+    @State private var glowAnimation = false
     
     private var targetFilteringDate: Date {
         Calendar.current.date(byAdding: .day, value: selectedDate, to: Date())!
     }
 
     var finishedMatches: [FeaturedMatch] {
-        viewModel.featuredMatches.filter { $0.status.uppercased() == "FINISHED" }
+        // Collects everything marked as FINISHED or matches with finalized content properties
+        viewModel.featuredMatches.filter { 
+            $0.status.uppercased() == "FINISHED" || 
+            (!$0.homeScore.isEmpty && !$0.awayScore.isEmpty && !$0.isLive && $0.status.uppercased() != "TIMED")
+        }
     }
 
     var filteredMatches: [FeaturedMatch] {
@@ -24,6 +29,7 @@ struct HomeView: View {
                 guard let matchDateObj = formatter.date(from: match.matchDate) else { return false }
                 return Calendar.current.isDate(matchDateObj, inSameDayAs: targetFilteringDate)
             }
+            // Arranges scheduled matches chronologically by match time values
             .sorted { $0.matchTime < $1.matchTime }
         } else {
             let query = searchText.lowercased()
@@ -73,7 +79,7 @@ struct HomeView: View {
                 ScrollView {
                     VStack(spacing: 16) {
                         
-                        // Swipeable Finished Matches Carousel (Swipe Right to Left)
+                        // Swipeable Finished Matches Carousel (Swipe Right to Left - image_5.png layout design)
                         if searchText.isEmpty && !finishedMatches.isEmpty {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("Recent Results")
@@ -94,7 +100,7 @@ struct HomeView: View {
                             }
                         }
 
-                        // Date Selector System (Hidden during global text search)
+                        // Updated Date Selector System (Cleaner outline look contrasting from standard blocks)
                         if searchText.isEmpty {
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 10) {
@@ -132,6 +138,12 @@ struct HomeView: View {
                                                 } onFavorite: {
                                                     favoritesManager.toggleFavorite(match.id)
                                                 }
+                                                // Dynamic breathing glow applied to live match rows
+                                                .overlay(
+                                                    RoundedRectangle(cornerRadius: 12)
+                                                        .stroke(match.isLive ? Color.red : Color.clear, lineWidth: match.isLive ? 1.5 : 0)
+                                                        .shadow(color: match.isLive ? Color.red.opacity(glowAnimation ? 0.8 : 0.2) : Color.clear, radius: glowAnimation ? 5 : 2)
+                                                )
                                             }
                                         }
                                         .padding(.horizontal)
@@ -191,6 +203,11 @@ struct HomeView: View {
                                             } onFavorite: {
                                                 favoritesManager.toggleFavorite(match.id)
                                             }
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 12)
+                                                    .stroke(match.isLive ? Color.red : Color.clear, lineWidth: match.isLive ? 1.5 : 0)
+                                                    .shadow(color: match.isLive ? Color.red.opacity(glowAnimation ? 0.8 : 0.2) : Color.clear, radius: glowAnimation ? 5 : 2)
+                                            )
                                         }
                                     }
                                     .padding(.horizontal)
@@ -209,6 +226,11 @@ struct HomeView: View {
             .task {
                 await viewModel.loadCMSData()
             }
+            .onAppear {
+                withAnimation(Animation.easeInOut(duration: 1.2).repeatForever(autoreverses: true)) {
+                    glowAnimation = true
+                }
+            }
             .sheet(item: $selectedMatch) { match in
                 FeaturedMatchDetailView(match: match)
             }
@@ -219,22 +241,22 @@ struct HomeView: View {
     }
 }
 
-// --- ADDED MISSING RECENT RESULTS CAROUSEL CARD ---
+// --- REDESIGNED FINISHED MATCH CARD STRUCT (Matches image_5.png explicitly with unique vertical presentation layout) ---
 struct FinishedMatchCarouselCard: View {
     let match: FeaturedMatch
     let onTap: () -> Void
     
     var body: some View {
         Button(action: onTap) {
-            VStack(spacing: 6) {
+            VStack(spacing: 12) {
                 Text(match.competition)
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.secondary)
                     .lineLimit(1)
                 
-                HStack(spacing: 12) {
-                    Spacer()
-                    VStack(spacing: 4) {
+                HStack(spacing: 0) {
+                    // Left Side: Home Team Info
+                    VStack(spacing: 8) {
                         AsyncImage(url: match.homeFlagURL) { phase in
                             if let image = phase.image {
                                 image.resizable().scaledToFill()
@@ -242,20 +264,25 @@ struct FinishedMatchCarouselCard: View {
                                 Image(systemName: "sportscourt").resizable()
                             }
                         }
-                        .frame(width: 20, height: 20).clipShape(Circle())
-                        Text(match.homeTeam).font(.caption2).fontWeight(.semibold).lineLimit(1)
+                        .frame(width: 28, height: 28)
+                        .clipShape(Circle())
+                        
+                        Text(match.homeTeam)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(.primary)
+                            .lineLimit(1)
+                            .multilineTextAlignment(.center)
                     }
-                    .frame(width: 55)
+                    .frame(maxWidth: .infinity)
                     
-                    Text("\(match.homeScore) - \(match.awayScore)")
-                        .font(.system(size: 16, weight: .black, design: .rounded))
-                        .foregroundColor(.green)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.green.opacity(0.1))
-                        .cornerRadius(6)
+                    // Center Pillar Partition displaying actual live/finished scorelines cleanly
+                    Capsule()
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(width: 2, height: 32)
+                        .padding(.horizontal, 4)
                     
-                    VStack(spacing: 4) {
+                    // Right Side: Away Team Info
+                    VStack(spacing: 8) {
                         AsyncImage(url: match.awayFlagURL) { phase in
                             if let image = phase.image {
                                 image.resizable().scaledToFill()
@@ -263,28 +290,34 @@ struct FinishedMatchCarouselCard: View {
                                 Image(systemName: "sportscourt").resizable()
                             }
                         }
-                        .frame(width: 20, height: 20).clipShape(Circle())
-                        Text(match.awayTeam).font(.caption2).fontWeight(.semibold).lineLimit(1)
+                        .frame(width: 28, height: 28)
+                        .clipShape(Circle())
+                        
+                        Text(match.awayTeam)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundColor(.primary)
+                            .lineLimit(1)
+                            .multilineTextAlignment(.center)
                     }
-                    .frame(width: 55)
-                    Spacer()
+                    .frame(maxWidth: .infinity)
                 }
                 
-                Text("FINAL FT")
-                    .font(.system(size: 8, weight: .bold))
+                // Display scores if present, fallback gracefully to structural status layout values
+                Text(!match.homeScore.isEmpty && !match.awayScore.isEmpty ? "\(match.homeScore) - \(match.awayScore)" : "FINAL FT")
+                    .font(.system(size: 10, weight: .bold))
                     .foregroundColor(.secondary)
+                    .textCase(.uppercase)
             }
-            .padding(.vertical, 10)
-            .padding(.horizontal, 8)
-            .frame(width: 175)
-            .background(Color(.systemGray6))
-            .cornerRadius(12)
+            .padding(.vertical, 14)
+            .padding(.horizontal, 10)
+            .frame(width: 155, height: 135)
+            .background(Color(.systemGray5).opacity(0.6)) // Darker contrast block
+            .cornerRadius(16)
         }
         .buttonStyle(PlainButtonStyle())
     }
 }
 
-// --- ADDED MISSING FEATURED MATCH CARD STRUCT ---
 struct FeaturedMatchCard: View {
     let featured: FeaturedMatch
     let isFavorited: Bool
@@ -304,6 +337,7 @@ struct FeaturedMatchCard: View {
                     
                     Text(featured.displayScore)
                         .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .foregroundColor(featured.isLive ? .red : .primary)
                     
                     AsyncImage(url: featured.awayFlagURL) { phase in
                         if let image = phase.image { image.resizable().scaledToFill() }
@@ -357,7 +391,7 @@ struct FeaturedMatchCard: View {
     }
 }
 
-// --- ADDED MISSING DATE CELL STRUCT ---
+// --- REDESIGNED DATE CELL STRUCT (Contrasting outline capsule layout style) ---
 struct DateCell: View {
     let day: Int
     let isSelected: Bool
@@ -366,32 +400,45 @@ struct DateCell: View {
     var dateLabel: String {
         let targetDate = Calendar.current.date(byAdding: .day, value: day, to: Date())!
         let formatter = DateFormatter()
-        formatter.dateFormat = "dd MMM"
+        formatter.dateFormat = "d"
         return formatter.string(from: targetDate)
     }
 
     var dayName: String {
-        if day == 0 { return "Today" }
+        if day == 0 { return "TODAY" }
         let targetDate = Calendar.current.date(byAdding: .day, value: day, to: Date())!
         let formatter = DateFormatter()
         formatter.dateFormat = "EEE"
+        return formatter.string(from: targetDate).uppercased()
+    }
+    
+    var monthName: String {
+        let targetDate = Calendar.current.date(byAdding: .day, value: day, to: Date())!
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMM"
         return formatter.string(from: targetDate)
     }
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 4) {
+            VStack(spacing: 3) {
                 Text(dayName)
-                    .font(.system(size: 10, weight: .bold))
-                    .textCase(.uppercase)
-                Text(dateLabel)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.system(size: 9, weight: .bold))
+                    .tracking(0.5)
+                Text("\(dateLabel) \(monthName)")
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
             }
-            .padding(.vertical, 8)
-            .padding(.horizontal, 12)
-            .background(isSelected ? Color.green : Color(.systemGray6))
+            .padding(.vertical, 10)
+            .padding(.horizontal, 14)
+            .frame(minWidth: 76)
+            .background(isSelected ? Color.green : Color.clear)
             .foregroundColor(isSelected ? .white : .primary)
-            .cornerRadius(10)
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isSelected ? Color.clear : Color(.systemGray4), lineWidth: isSelected ? 0 : 1)
+            )
         }
+        .buttonStyle(PlainButtonStyle())
     }
 }
