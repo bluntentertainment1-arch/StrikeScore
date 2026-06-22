@@ -4,6 +4,7 @@ struct FeaturedMatchDetailView: View {
     let match: FeaturedMatch
     @Environment(\.dismiss) private var dismiss
     
+    // --- RUNTIME DETERMINISTIC ODDS ENGINE ---
     private var simulatedOdds: (home: String, draw: String, away: String) {
         let homeWeight = match.homeTeam.utf8.reduce(0) { $0 + Int($1) }
         let awayWeight = match.awayTeam.utf8.reduce(0) { $0 + Int($1) }
@@ -88,7 +89,7 @@ struct FeaturedMatchDetailView: View {
                         .padding(.horizontal)
                     }
 
-                    // FIXED: Key Match Information Card Section
+                    // Key Match Information Card Section
                     VStack(alignment: .leading, spacing: 14) {
                         Text("Match Information")
                             .font(.headline)
@@ -96,7 +97,7 @@ struct FeaturedMatchDetailView: View {
                         Divider()
                         
                         Group {
-                            // Added Match Status Info Field row 
+                            // Match Status row with explicit live tracking coloring
                             InfoDetailRow(title: "Match Status", value: match.status.uppercased())
                                 .foregroundColor(match.isCurrentlyLive ? .green : .primary)
                             
@@ -129,5 +130,45 @@ struct FeaturedMatchDetailView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Helper Layout Components
+
+struct OddsBox: View {
+    let label: String
+    let value: String
+    
+    var body: some View {
+        VStack(spacing: 4) {
+            Text(label)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundColor(.secondary)
+            Text(value)
+                .font(.system(size: 16, weight: .black, design: .rounded))
+                .foregroundColor(.green)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+        .background(Color(.systemGray6))
+        .cornerRadius(10)
+    }
+}
+
+struct InfoDetailRow: View {
+    let title: String
+    let value: String
+    
+    var body: some View {
+        HStack {
+            Text(title)
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(.secondary)
+            Spacer()
+            Text(value)
+                .font(.system(size: 14, weight: .semibold))
+                .multilineTextAlignment(.trailing)
+        }
+        .padding(.vertical, 4)
     }
 }
