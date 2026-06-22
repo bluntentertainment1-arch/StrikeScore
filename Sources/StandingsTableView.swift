@@ -26,41 +26,39 @@ struct StandingsTableView: View {
                 .padding(.vertical, 10)
                 .background(Color(.systemGray6))
 
-                List {
-                    ForEach(tableEntries, id: \.idTeam) { entry in
-                        HStack(spacing: 0) {
-                            Text(entry.intRank)
-                                .font(.system(size: 14, weight: .semibold, design: .rounded))
-                                .frame(width: 30, alignment: .leading)
+                List(tableEntries) { entry in
+                    HStack(spacing: 0) {
+                        Text(entry.intRank)
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            .frame(width: 30, alignment: .leading)
 
-                            HStack(spacing: 10) {
-                                TeamLogoView(teamName: entry.strTeam)
-                                    .frame(width: 24, height: 24)
-                                Text(entry.strTeam)
-                                    .font(.system(size: 14, weight: .medium))
-                                    .lineLimit(1)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-
-                            Text(entry.intPlayed)
-                                .font(.system(size: 14))
-                                .frame(width: 35, alignment: .center)
-                                .foregroundColor(.secondary)
-
-                            Text(entry.intGoalDifference)
-                                .font(.system(size: 14, design: .rounded))
-                                .frame(width: 40, alignment: .center)
-
-                            Text(entry.intPoints)
-                                .font(.system(size: 14, weight: .bold, design: .rounded))
-                                .frame(width: 40, alignment: .center)
+                        HStack(spacing: 10) {
+                            TeamLogoView(teamName: entry.strTeam)
+                                .frame(width: 24, height: 24)
+                            Text(entry.strTeam)
+                                .font(.system(size: 14, weight: .medium))
+                                .lineLimit(1)
                         }
-                        .padding(.horizontal)
-                        .frame(height: 48)
-                        .listRowInsets(EdgeInsets())
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                        Text(entry.intPlayed)
+                            .font(.system(size: 14))
+                            .frame(width: 35, alignment: .center)
+                            .foregroundColor(.secondary)
+
+                        Text(entry.intGoalDifference)
+                            .font(.system(size: 14, design: .rounded))
+                            .frame(width: 40, alignment: .center)
+
+                        Text(entry.intPoints)
+                            .font(.system(size: 14, weight: .bold, design: .rounded))
+                            .frame(width: 40, alignment: .center)
                     }
+                    .padding(.horizontal)
+                    .frame(height: 48)
+                    .listRowInsets(EdgeInsets())
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
                 }
                 .listStyle(.plain)
             }
