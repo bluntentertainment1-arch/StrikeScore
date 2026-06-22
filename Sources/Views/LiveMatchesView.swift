@@ -4,6 +4,9 @@ struct LiveMatchesView: View {
     @StateObject private var viewModel = MatchesViewModel()
     @StateObject private var favoritesManager = FavoritesManager.shared
     @State private var selectedMatch: FeaturedMatch? = nil
+    
+    // Smooth pulse state variable to drive the custom navigation dot animation
+    @State private var pulseAnimation = false
 
     var body: some View {
         NavigationStack {
@@ -37,7 +40,25 @@ struct LiveMatchesView: View {
                 }
                 .padding(.vertical)
             }
-            .navigationTitle("Live Matches")
+            // FIXED: Title updated to "Live"
+            .navigationTitle("Live")
+            .navigationBarTitleDisplayMode(.inline)
+            // Added glowing green icon next to the navigation layout header
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(Color.green)
+                            .frame(width: 8, height: 8)
+                            .scaleEffect(pulseAnimation ? 1.3 : 0.9)
+                            .opacity(pulseAnimation ? 0.5 : 1.0)
+                            .animation(.easeInOut(duration: 1.0).repeatForever(autoreverses: true), value: pulseAnimation)
+                            .onAppear {
+                                pulseAnimation = true
+                            }
+                    }
+                }
+            }
             .task {
                 await viewModel.loadCMSData()
                 viewModel.startAutoRefresh()
@@ -68,7 +89,7 @@ struct LiveMatchRow: View {
                 // Home team
                 VStack(spacing: 6) {
                     AsyncImage(url: match.homeFlagURL) { image in
-                        image.resizable().scaledToFit()
+                        image.resizable().scaledToFill()
                     } placeholder: {
                         Circle().fill(Color.gray.opacity(0.3))
                     }
@@ -77,6 +98,7 @@ struct LiveMatchRow: View {
 
                     Text(match.homeTeam)
                         .font(.caption)
+                        .fontWeight(.semibold)
                         .lineLimit(1)
                 }
                 .frame(maxWidth: .infinity)
@@ -86,13 +108,12 @@ struct LiveMatchRow: View {
                     HStack(spacing: 4) {
                         Circle()
                             .fill(Color.red)
-                            .frame(width: 8, height: 8)
+                            .frame(width: 6, height: 6)
                         Text("LIVE")
-                            .font(.caption)
-                            .fontWeight(.bold)
+                            .font(.system(size: 10, weight: .bold))
                             .foregroundColor(.red)
                     }
-                    .padding(.horizontal, 12)
+                    .padding(.horizontal, 10)
                     .padding(.vertical, 4)
                     .background(Color.red.opacity(0.1))
                     .cornerRadius(8)
@@ -102,15 +123,16 @@ struct LiveMatchRow: View {
                         .monospacedDigit()
 
                     Text(match.competition)
-                        .font(.caption)
+                        .font(.caption2)
                         .foregroundColor(.secondary)
+                        .lineLimit(1)
                 }
                 .frame(width: 100)
 
                 // Away team
                 VStack(spacing: 6) {
                     AsyncImage(url: match.awayFlagURL) { image in
-                        image.resizable().scaledToFit()
+                        image.resizable().scaledToFill()
                     } placeholder: {
                         Circle().fill(Color.gray.opacity(0.3))
                     }
@@ -119,6 +141,7 @@ struct LiveMatchRow: View {
 
                     Text(match.awayTeam)
                         .font(.caption)
+                        .fontWeight(.semibold)
                         .lineLimit(1)
                 }
                 .frame(maxWidth: .infinity)
