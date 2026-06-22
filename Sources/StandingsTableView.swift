@@ -28,8 +28,9 @@ struct StandingsTableView: View {
 
                 ScrollView {
                     LazyVStack(spacing: 0) {
-                        ForEach(0..<tableEntries.count, id: \.self) { index in
-                            let entry = tableEntries[index]
+                        // FIX: Explicitly iterating over tableEntries using a stable property (like the rank/position or team name)
+                        // If TableTeamEntry conforms to Identifiable, you can use: ForEach(tableEntries) { entry in
+                        ForEach(tableEntries, id: \.strTeam) { entry in
                             HStack(spacing: 0) {
                                 Text(entry.intRank)
                                     .font(.system(size: 14, weight: .semibold, design: .rounded))
