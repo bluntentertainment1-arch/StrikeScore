@@ -35,15 +35,18 @@ struct FeaturedMatch: Identifiable, Codable, Hashable {
         return true
     }
 
+    // Resolves both direct raw URLs or fallback mappings
     var homeFlagURL: URL? {
-        if homeFlag.hasPrefix("http") { return URL(string: homeFlag) }
-        if homeFlag.count == 2 { return URL(string: "https://flagcdn.com/w80/\(homeFlag.lowercased()).png") }
+        let clean = homeFlag.trimmingCharacters(in: .whitespacesAndNewlines)
+        if clean.hasPrefix("http") { return URL(string: clean) }
+        if clean.count == 2 { return URL(string: "https://flagcdn.com/w80/\(clean.lowercased()).png") }
         return nil
     }
 
     var awayFlagURL: URL? {
-        if awayFlag.hasPrefix("http") { return URL(string: awayFlag) }
-        if awayFlag.count == 2 { return URL(string: "https://flagcdn.com/w80/\(awayFlag.lowercased()).png") }
+        let clean = awayFlag.trimmingCharacters(in: .whitespacesAndNewlines)
+        if clean.hasPrefix("http") { return URL(string: clean) }
+        if clean.count == 2 { return URL(string: "https://flagcdn.com/w80/\(clean.lowercased()).png") }
         return nil
     }
 
@@ -66,26 +69,26 @@ struct FeaturedMatch: Identifiable, Codable, Hashable {
         return "\(homeScore) - \(awayScore)"
     }
 
-    // --- DYNAMIC FALLBACK SYSTEM FOR MISSING LOGOS ---
+    // --- HIGH-FIDELITY AUTOMATED LOGO FALLBACK SYSTEM ---
     
-    /// Generates a unique, reproducible color based on the characters of the team's name
+    /// Generates a unique, stable color determined exclusively by the team name's characters
     func generateFallbackColor(for teamName: String) -> Color {
-        let colors: [Color] = [.red, .blue, .orange, .purple, .teal, .indigo, .pink, .cyan, .orange, .green]
-        let sum = teamName.utf8.reduce(0) { $0 + Int($1) }
-        return colors[sum % colors.count]
+        let brandingPool: [Color] = [.red, .blue, .orange, .purple, .teal, .indigo, .pink, .cyan, .orange, .green]
+        let characterSum = teamName.utf8.reduce(0) { $0 + Int($1) }
+        return brandingPool[characterSum % brandingPool.count]
     }
     
     var homeFallbackColor: Color { generateFallbackColor(for: homeTeam) }
     var awayFallbackColor: Color { generateFallbackColor(for: awayTeam) }
     
-    /// Derives clean, short 2-character initials for fallback text overlays
+    /// Derives uniform 2-character initials dynamically for emblem centers
     func getTeamInitials(from teamName: String) -> String {
         let cleanName = teamName.trimmingCharacters(in: .whitespacesAndNewlines)
         let words = cleanName.components(separatedBy: " ")
         if words.count >= 2 {
-            let first = words[0].prefix(1)
-            let second = words[1].prefix(1)
-            return "\(first)\(second)".uppercased()
+            let firstInitial = words[0].prefix(1)
+            let secondInitial = words[1].prefix(1)
+            return "\(firstInitial)\(secondInitial)".uppercased()
         }
         return String(cleanName.prefix(2)).uppercased()
     }
