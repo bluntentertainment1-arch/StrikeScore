@@ -3,146 +3,146 @@ import SwiftUI
 struct FeaturedMatchDetailView: View {
     let match: FeaturedMatch
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var favoritesManager = FavoritesManager.shared
+    
+    // --- RUNTIME DETERMINISTIC ODDS ENGINE ---
+    private var simulatedOdds: (home: String, draw: String, away: String) {
+        let homeWeight = match.homeTeam.utf8.reduce(0) { $0 + Int($1) }
+        let awayWeight = match.awayTeam.utf8.reduce(0) { $0 + Int($1) }
+        
+        let baseHome = 1.2 + Double(homeWeight % 250) / 100.0
+        let baseAway = 1.2 + Double(awayWeight % 250) / 100.0
+        let baseDraw = 2.1 + Double((homeWeight + awayWeight) % 150) / 100.0
+        
+        return (
+            String(format: "%.2f", baseHome),
+            String(format: "%.2f", baseDraw),
+            String(format: "%.2f", baseAway)
+        )
+    }
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 20) {
-                    // Match header
-                    VStack(spacing: 8) {
+                VStack(spacing: 24) {
+                    
+                    // Core Match Scoreboard Banner
+                    VStack(spacing: 16) {
                         Text(match.competition)
                             .font(.caption)
-                            .fontWeight(.semibold)
+                            .fontWeight(.bold)
                             .foregroundColor(.secondary)
-
-                        if match.isLive {
-                            HStack(spacing: 4) {
-                                Circle()
-                                    .fill(Color.red)
-                                    .frame(width: 8, height: 8)
-                                Text("LIVE")
-                                    .font(.caption)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.red)
+                        
+                        HStack(spacing: 20) {
+                            VStack(spacing: 8) {
+                                TeamLogoView(
+                                    teamName: match.homeTeam,
+                                    localSpreadsheetURL: match.homeFlagURL,
+                                    fallbackColor: match.homeFallbackColor,
+                                    initials: match.getTeamInitials(from: match.homeTeam),
+                                    size: 60
+                               )
+                                Text(match.homeTeam)
+                                    .font(.headline)
+                                    .lineLimit(1)
                             }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 4)
-                            .background(Color.red.opacity(0.1))
-                            .cornerRadius(8)
+                            .frame(maxWidth: .infinity)
+                            
+                            Text(match.displayScore)
+                                .font(.system(size: 36, weight: .black, design: .rounded))
+                                .frame(width: 120)
+                            
+                            VStack(spacing: 8) {
+                                TeamLogoView(
+                                    teamName: match.awayTeam,
+                                    localSpreadsheetURL: match.awayFlagURL,
+                                    fallbackColor: match.awayFallbackColor,
+                                    initials: match.getTeamInitials(from: match.awayTeam),
+                                    size: 60
+                                )
+                                Text(match.awayTeam)
+                                    .font(.headline)
+                                    .lineLimit(1)
+                            }
+                            .frame(maxWidth: .infinity)
                         }
                     }
-                    .padding(.top)
-
-                    // Teams and score
-                    HStack(spacing: 20) {
-                        VStack(spacing: 12) {
-                            AsyncImage(url: match.homeFlagURL) { image in
-                                image.resizable().scaledToFit()
-                            } placeholder: {
-                                Circle().fill(Color.gray.opacity(0.3))
-                            }
-                            .frame(width: 60, height: 60)
-                            .clipShape(Circle())
-
-                            Text(match.homeTeam)
-                                .font(.headline)
-                                .multilineTextAlignment(.center)
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(20)
+                    
+                    // --- PRE-MATCH BETTING ODDS PANEL ---
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Match Odds")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(.secondary)
+                        
+                        HStack(spacing: 12) {
+                            OddsBox(label: "1 (Home)", value: simulatedOdds.home)
+                            OddsBox(label: "X (Draw)", value: simulatedOdds.draw)
+                            OddsBox(label: "2 (Away)", value: simulatedOdds.away)
                         }
-                        .frame(maxWidth: .infinity)
-
-                        VStack(spacing: 4) {
-                            Text(match.displayScore)
-                                .font(.system(size: 40, weight: .black, design: .rounded))
-                                .monospacedDigit()
-
-                            if match.isLive {
-                                Text(match.status)
-                                    .font(.caption)
-                                    .fontWeight(.bold)
-                                    .foregroundColor(.red)
-                            }
-                        }
-
-                        VStack(spacing: 12) {
-                            AsyncImage(url: match.awayFlagURL) { image in
-                                image.resizable().scaledToFit()
-                            } placeholder: {
-                                Circle().fill(Color.gray.opacity(0.3))
-                            }
-                            .frame(width: 60, height: 60)
-                            .clipShape(Circle())
-
-                            Text(match.awayTeam)
-                                .font(.headline)
-                                .multilineTextAlignment(.center)
-                        }
-                        .frame(maxWidth: .infinity)
                     }
                     .padding(.horizontal)
-
-                    // Match info
-                    VStack(alignment: .leading, spacing: 12) {
-                        InfoRow(label: "Date", value: match.displayDate)
-                        InfoRow(label: "Time", value: match.displayTime)
-                        InfoRow(label: "Venue", value: match.venue)
-                        InfoRow(label: "Stage", value: match.stage)
-                        if !match.group.isEmpty {
-                            InfoRow(label: "Group", value: match.group)
+                    
+                    // Info Row Metadata Block
+                    VStack(spacing: 12) {
+                        InfoDetailRow(title: "Venue", value: match.venue.isEmpty ? "Unknown Stadium" : match.venue)
+                        InfoDetailRow(title: "Date", value: match.displayDate)
+                        InfoDetailRow(title: "Time", value: match.displayTime)
+                        if !match.stage.isEmpty {
+                            InfoDetailRow(title: "Stage", value: match.stage)
                         }
-                        InfoRow(label: "Status", value: match.status)
                     }
                     .padding()
                     .background(Color(.systemGray6))
                     .cornerRadius(16)
                     .padding(.horizontal)
-
-                    // Favorite button
-                    Button(action: {
-                        favoritesManager.toggleFavorite(match.id)
-                    }) {
-                        HStack {
-                            Image(systemName: favoritesManager.isFavorited(match.id) ? "heart.fill" : "heart")
-                            Text(favoritesManager.isFavorited(match.id) ? "Remove from Favorites" : "Add to Favorites")
-                        }
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(favoritesManager.isFavorited(match.id) ? Color.red : Color.green)
-                        .cornerRadius(12)
-                    }
-                    .padding(.horizontal)
-
-                    Spacer()
                 }
+                .padding(.vertical)
             }
             .navigationTitle("Match Details")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
+                    Button("Close") { dismiss() }
                 }
             }
         }
     }
 }
 
-struct InfoRow: View {
+struct OddsBox: View {
     let label: String
     let value: String
+    
+    var body: some View {
+        VStack(spacing: 4) {
+            Text(label)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(.secondary)
+            Text(value)
+                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .foregroundColor(.green)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+        .background(Color(.systemGray6))
+        .cornerRadius(10)
+    }
+}
 
+struct InfoDetailRow: View {
+    let title: String
+    let value: String
+    
     var body: some View {
         HStack {
-            Text(label)
-                .font(.subheadline)
+            Text(title)
                 .foregroundColor(.secondary)
             Spacer()
             Text(value)
-                .font(.subheadline)
-                .fontWeight(.semibold)
+                .fontWeight(.medium)
         }
+        .font(.subheadline)
     }
 }
