@@ -4,7 +4,6 @@ struct FeaturedMatchDetailView: View {
     let match: FeaturedMatch
     @Environment(\.dismiss) private var dismiss
     
-    // --- RUNTIME DETERMINISTIC ODDS ENGINE ---
     private var simulatedOdds: (home: String, draw: String, away: String) {
         let homeWeight = match.homeTeam.utf8.reduce(0) { $0 + Int($1) }
         let awayWeight = match.awayTeam.utf8.reduce(0) { $0 + Int($1) }
@@ -40,16 +39,17 @@ struct FeaturedMatchDetailView: View {
                                     fallbackColor: match.homeFallbackColor,
                                     initials: match.getTeamInitials(from: match.homeTeam),
                                     size: 60
-                               )
+                                )
                                 Text(match.homeTeam)
-                                    .font(.headline)
-                                    .lineLimit(1)
+                                    .font(.subheadline)
+                                    .fontWeight(.bold)
+                                    .multilineTextAlignment(.center)
                             }
                             .frame(maxWidth: .infinity)
                             
+                            // Prominent Score Display
                             Text(match.displayScore)
                                 .font(.system(size: 36, weight: .black, design: .rounded))
-                                .frame(width: 120)
                             
                             VStack(spacing: 8) {
                                 TeamLogoView(
@@ -60,37 +60,58 @@ struct FeaturedMatchDetailView: View {
                                     size: 60
                                 )
                                 Text(match.awayTeam)
-                                    .font(.headline)
-                                    .lineLimit(1)
+                                    .font(.subheadline)
+                                    .fontWeight(.bold)
+                                    .multilineTextAlignment(.center)
                             }
                             .frame(maxWidth: .infinity)
                         }
                     }
                     .padding()
-                    .background(Color(.systemGray6))
+                    .background(Color(.systemGray6).opacity(0.5))
                     .cornerRadius(20)
+                    .padding(.horizontal)
                     
-                    // --- PRE-MATCH BETTING ODDS PANEL ---
+                    // Simulated Betting Market Odds Display
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Match Odds")
-                            .font(.system(size: 14, weight: .bold))
+                        Text("Simulated Full-Time Odds")
+                            .font(.caption)
+                            .fontWeight(.bold)
                             .foregroundColor(.secondary)
+                            .padding(.horizontal)
                         
                         HStack(spacing: 12) {
                             OddsBox(label: "1 (Home)", value: simulatedOdds.home)
                             OddsBox(label: "X (Draw)", value: simulatedOdds.draw)
                             OddsBox(label: "2 (Away)", value: simulatedOdds.away)
                         }
+                        .padding(.horizontal)
                     }
-                    .padding(.horizontal)
-                    
-                    // Info Row Metadata Block
-                    VStack(spacing: 12) {
-                        InfoDetailRow(title: "Venue", value: match.venue.isEmpty ? "Unknown Stadium" : match.venue)
-                        InfoDetailRow(title: "Date", value: match.displayDate)
-                        InfoDetailRow(title: "Time", value: match.displayTime)
-                        if !match.stage.isEmpty {
-                            InfoDetailRow(title: "Stage", value: match.stage)
+
+                    // FIXED: Key Match Information Card Section
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("Match Information")
+                            .font(.headline)
+                        
+                        Divider()
+                        
+                        Group {
+                            // Added Match Status Info Field row 
+                            InfoDetailRow(title: "Match Status", value: match.status.uppercased())
+                                .foregroundColor(match.isCurrentlyLive ? .green : .primary)
+                            
+                            InfoDetailRow(title: "Date", value: match.matchDate)
+                            InfoDetailRow(title: "Time", value: match.matchTime)
+                            
+                            if !match.venue.isEmpty {
+                                InfoDetailRow(title: "Venue", value: match.venue)
+                            }
+                            if !match.group.isEmpty {
+                                InfoDetailRow(title: "Group", value: match.group)
+                            }
+                            if !match.stage.isEmpty {
+                                InfoDetailRow(title: "Stage", value: match.stage)
+                            }
                         }
                     }
                     .padding()
@@ -108,41 +129,5 @@ struct FeaturedMatchDetailView: View {
                 }
             }
         }
-    }
-}
-
-struct OddsBox: View {
-    let label: String
-    let value: String
-    
-    var body: some View {
-        VStack(spacing: 4) {
-            Text(label)
-                .font(.system(size: 10, weight: .medium))
-                .foregroundColor(.secondary)
-            Text(value)
-                .font(.system(size: 15, weight: .bold, design: .rounded))
-                .foregroundColor(.green)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 10)
-        .background(Color(.systemGray6))
-        .cornerRadius(10)
-    }
-}
-
-struct InfoDetailRow: View {
-    let title: String
-    let value: String
-    
-    var body: some View {
-        HStack {
-            Text(title)
-                .foregroundColor(.secondary)
-            Spacer()
-            Text(value)
-                .fontWeight(.medium)
-        }
-        .font(.subheadline)
     }
 }
