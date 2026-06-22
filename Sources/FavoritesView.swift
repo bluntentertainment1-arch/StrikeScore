@@ -47,15 +47,15 @@ struct FavoritesView: View {
     }
     
     private func syncFavorites() {
-        // Safe context read to bypass dynamic wrappers compile error safely
-        self.favoriteMatchesList = favoritesManager.favoriteMatches
+        // Reads from the standard favorites collection matching your manager interface
+        self.favoriteMatchesList = favoritesManager.favorites
     }
     
     private func deleteFavorite(at offsets: IndexSet) {
         for index in offsets {
             let match = favoriteMatchesList[index]
-            // Accessing internal tracking functions securely without label or wrapper blocks
-            favoritesManager.toggleFavorite(match: match)
+            // Fixed: Passes the item's identifying String signature value to meet API requirements
+            favoritesManager.toggle(match.id)
         }
         syncFavorites()
     }
