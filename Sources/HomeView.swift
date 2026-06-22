@@ -29,7 +29,8 @@ struct HomeView: View {
                         
                         // Clean un-wrapped reading structure layout
                         LazyVStack(spacing: 14) {
-                            ForEach(viewModel.filteredMatches) { match in
+                            // FIX: Passing searchText explicitly into the view model function call
+                            ForEach(viewModel.filteredMatches(contains: searchText)) { match in
                                 MatchCardView(match: match, onTap: {
                                     // Tap routine handled safely in-view
                                 })
