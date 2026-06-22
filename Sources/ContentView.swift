@@ -25,9 +25,14 @@ struct ContentView: View {
                     }
                     .tag(2)
                 
+                // FIXED: Blazing Explore Tab Menu Setup
                 EditorialView()
                     .tabItem {
-                        Label("Explore", systemImage: "compass")
+                        VStack {
+                            Image(systemName: "flame.circle.fill")
+                                .symbolRenderingMode(.multicolor)
+                            Text("Explore")
+                        }
                     }
                     .tag(3)
                 
