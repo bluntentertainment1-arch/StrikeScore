@@ -15,7 +15,7 @@ class ExcelCMSService {
 
         let (data, _) = try await URLSession.shared.data(from: url)
         let csvString = String(data: data, encoding: .utf8) ?? ""
-
+        
         AppLogger.shared.log("Featured CSV raw (first 500 chars): \(String(csvString.prefix(500)))")
 
         return parseFeaturedMatches(csv: csvString)
@@ -28,7 +28,7 @@ class ExcelCMSService {
 
         let (data, _) = try await URLSession.shared.data(from: url)
         let csvString = String(data: data, encoding: .utf8) ?? ""
-
+        
         AppLogger.shared.log("Editorial CSV raw (first 500 chars): \(String(csvString.prefix(500)))")
 
         return parseEditorial(csv: csvString)
@@ -51,8 +51,7 @@ class ExcelCMSService {
             guard !row.isEmpty else { continue }
 
             let columns = parseCSVRow(row)
-
-            // REQUIRE 16 columns now with expanded match info
+            
             guard columns.count >= 16 else { 
                 AppLogger.shared.log("WARNING: Row \(i) has only \(columns.count) columns, skipping. Content: \(row)")
                 continue 
@@ -103,7 +102,8 @@ class ExcelCMSService {
             guard !row.isEmpty else { continue }
 
             let columns = parseCSVRow(row)
-            guard columns.count >= 5 else { 
+            // Now requires 6 columns: id,headline,body,fullContent,datePosted,active
+            guard columns.count >= 6 else { 
                 AppLogger.shared.log("WARNING: Editorial row \(i) has only \(columns.count) columns, skipping")
                 continue 
             }
@@ -112,8 +112,9 @@ class ExcelCMSService {
                 id: columns[0],
                 headline: columns[1],
                 body: columns[2],
-                datePosted: columns[3],
-                active: columns[4].lowercased() == "true"
+                fullContent: columns[3],
+                datePosted: columns[4],
+                active: columns[5].lowercased() == "true"
             )
 
             if item.active {
