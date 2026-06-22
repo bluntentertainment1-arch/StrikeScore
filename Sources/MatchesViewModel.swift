@@ -10,7 +10,11 @@ class MatchesViewModel: ObservableObject {
 
     private var cmsTimer: Timer?
 
-    // Using Excel data only - API is unreliable for this demo
+    // Global arrays filtered automatically for Live layouts safely handling both tags
+    var liveMatches: [FeaturedMatch] {
+        featuredMatches.filter { $0.isLive || $0.status.uppercased() == "LIVE" || $0.status.uppercased() == "IN_PLAY" }
+    }
+
     func loadCMSData() async {
         isLoading = true
         errorMessage = nil
@@ -20,13 +24,20 @@ class MatchesViewModel: ObservableObject {
             async let editorialTask = ExcelCMSService.shared.fetchEditorial()
 
             let (featured, editorial) = try await (featuredTask, editorialTask)
-            self.featuredMatches = featured
+            
+            // Organized scheduled entries sorted strictly according to scheduling dates/times
+            self.featuredMatches = featured.sorted { (m1: FeaturedMatch, m2: FeaturedMatch) -> Bool in
+                if m1.matchDate != m2.matchDate {
+                    return m1.matchDate < m2.matchDate
+                }
+                return m1.matchTime < m2.matchTime
+            }
             self.editorialItems = editorial
 
-            CacheService.shared.save(featured, forKey: "cachedFeatured")
+            CacheService.shared.save(self.featuredMatches, forKey: "cachedFeatured")
             CacheService.shared.save(editorial, forKey: "cachedEditorial")
 
-            AppLogger.shared.log("CMS loaded: \(featured.count) featured, \(editorial.count) editorial")
+            AppLogger.shared.log("CMS loaded: \(featured.count) featured sorted, \(editorial.count) editorial")
 
         } catch {
             AppLogger.shared.error("CMS load error: \(error.localizedDescription)")
@@ -38,7 +49,10 @@ class MatchesViewModel: ObservableObject {
 
     private func loadCMSFromCache() {
         if let cached: [FeaturedMatch] = CacheService.shared.load([FeaturedMatch].self, forKey: "cachedFeatured") {
-            self.featuredMatches = cached
+            self.featuredMatches = cached.sorted { 
+                if $0.matchDate != $1.matchDate { return $0.matchDate < $1.matchDate }
+                return $0.matchTime < $1.matchTime
+            }
         }
         if let cached: [EditorialItem] = CacheService.shared.load([EditorialItem].self, forKey: "cachedEditorial") {
             self.editorialItems = cached
