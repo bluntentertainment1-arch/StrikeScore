@@ -1,99 +1,111 @@
 import SwiftUI
 
 struct StandingsTableView: View {
-    @State private var standings: [TableTeamEntry] = []
-    @State private var isLoading = true
-    let leagueId: String = "4328" // Default Premier League ID
+    @StateObject private var leagueService = LeagueTableService()
+    @State private var isLoading = false
     
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // Header Label Bar
+                // Table Header Column Labels
                 HStack(spacing: 0) {
-                    Text("Pos").frame(width: 30, alignment: .leading)
-                    Text("Team").frame(maxWidth: .infinity, alignment: .leading)
-                    
-                    HStack(spacing: 12) {
-                        Text("PL").frame(width: 24, alignment: .center)
-                        Text("GD").frame(width: 28, alignment: .center)
-                        Text("PTS").frame(width: 32, alignment: .trailing)
-                    }
+                    Text("#")
+                        .frame(width: 30, alignment: .leading)
+                    Text("Team")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Text("P")
+                        .frame(width: 35, alignment: .center)
+                    Text("GD")
+                        .frame(width: 40, alignment: .center)
+                    Text("PTS")
+                        .frame(width: 45, alignment: .trailing)
                 }
-                .font(.system(size: 11, weight: .bold))
+                .font(.system(size: 12, weight: .bold))
                 .foregroundColor(.secondary)
-                .padding(.horizontal, 16)
+                .padding(.horizontal)
                 .padding(.vertical, 10)
                 .background(Color(.systemGray6))
                 
+                // Standings Stream List Layout
                 if isLoading {
                     Spacer()
                     ProgressView("Updating table standings...")
+                        .tint(.green)
                     Spacer()
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 0) {
-                            ForEach(standings) { team in
-                                StandingsRow(team: team)
-                                Divider().padding(.leading, 16)
+                            ForEach(leagueService.standings) { standing in
+                                StandingsRow(standing: standing)
+                                Divider()
+                                    .padding(.leading, 45)
                             }
                         }
                     }
                 }
             }
             .navigationTitle("League Table")
-            .navigationBarTitleDisplayMode(.inline)
             .task {
-                self.standings = await LeagueTableService.shared.fetchLeagueTable(leagueId: leagueId)
-                self.isLoading = false
+                isLoading = true
+                await leagueService.fetchTableData()
+                isLoading = false
             }
         }
     }
 }
 
+// MARK: - Standings Row Component
+
 struct StandingsRow: View {
-    let team: TableTeamEntry
+    let standing: Standing
     
     var body: some View {
         HStack(spacing: 0) {
-            // Position Rank
-            Text(team.intRank)
-                .font(.system(size: 13, weight: .bold, design: .rounded))
+            // Position Label
+            Text("\(standing.position)")
+                .font(.system(size: 14, weight: .semibold, design: .rounded))
                 .frame(width: 30, alignment: .leading)
-                .foregroundColor(Int(team.intRank) ?? 0 <= 4 ? .green : .primary)
+                .foregroundColor(positionColor(for: standing.position))
             
-            // Crest and Label
-            HStack(spacing: 8) {
-                TeamLogoView(
-                    teamName: team.strTeam,
-                    localSpreadsheetURL: URL(string: team.strTeamBadge ?? ""),
-                    fallbackColor: .gray,
-                    initials: String(team.strTeam.prefix(2)),
-                    size: 20
-                )
+            // Team Identity Grid
+            HStack(spacing: 10) {
+                TeamLogoView(teamName: standing.teamName)
+                    .frame(width: 24, height: 24)
                 
-                Text(team.strTeam)
-                    .font(.system(size: 14, weight: .semibold))
+                Text(standing.teamName)
+                    .font(.system(size: 14, weight: .medium))
                     .lineLimit(1)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             
-            // Statistics Block
-            HStack(spacing: 12) {
-                Text(team.intPlayed)
-                    .frame(width: 24, alignment: .center)
-                
-                Text(Int(team.intGoalDifference) ?? 0 > 0 ? "+\(team.intGoalDifference)" : team.intGoalDifference)
-                    .frame(width: 28, alignment: .center)
-                    .foregroundColor(Int(team.intGoalDifference) ?? 0 >= 0 ? .primary : .red)
-                
-                Text(team.intPoints)
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
-                    .frame(width: 32, alignment: .trailing)
-            }
-            .font(.system(size: 13))
-            .foregroundColor(.primary)
+            // Matches Played
+            Text("\(standing.played)")
+                .font(.system(size: 14))
+                .frame(width: 35, alignment: .center)
+                .foregroundColor(.secondary)
+            
+            // Goal Difference
+            Text("\(standing.goalDifference >= 0 ? "+" : "")\(standing.goalDifference)")
+                .font(.system(size: 14, design: .rounded))
+                .frame(width: 40, alignment: .center)
+                .foregroundColor(standing.goalDifference >= 0 ? .primary : .red)
+            
+            // Points Column Total
+            Text("\(standing.points)")
+                .font(.system(size: 15, weight: .bold, design: .rounded))
+                .frame(width: 45, alignment: .trailing)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal)
+        .frame(height: 48)
+    }
+    
+    // Highlight top zone context styles natively
+    private func positionColor(for pos: Int) -> Color {
+        switch pos {
+        case 1...4: return .blue       // Champions League zone illumination
+        case 5: return .orange         // Europa League zone
+        case 18...20: return .red      // Relegation drop zone
+        default: return .primary
+        }
     }
 }
