@@ -15,7 +15,6 @@ struct HomeView: View {
     }
 
     var finishedMatches: [FeaturedMatch] {
-        // Collects everything marked as FINISHED or matches with finalized content properties
         viewModel.featuredMatches.filter { 
             $0.status.uppercased() == "FINISHED" || 
             (!$0.homeScore.isEmpty && !$0.awayScore.isEmpty && !$0.isLive && $0.status.uppercased() != "TIMED")
@@ -29,7 +28,6 @@ struct HomeView: View {
                 guard let matchDateObj = formatter.date(from: match.matchDate) else { return false }
                 return Calendar.current.isDate(matchDateObj, inSameDayAs: targetFilteringDate)
             }
-            // Arranges scheduled matches chronologically by match time values
             .sorted { $0.matchTime < $1.matchTime }
         } else {
             let query = searchText.lowercased()
@@ -79,7 +77,7 @@ struct HomeView: View {
                 ScrollView {
                     VStack(spacing: 16) {
                         
-                        // Swipeable Finished Matches Carousel (Swipe Right to Left - image_5.png layout design)
+                        // Swipeable Finished Matches Carousel
                         if searchText.isEmpty && !finishedMatches.isEmpty {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("Recent Results")
@@ -100,7 +98,7 @@ struct HomeView: View {
                             }
                         }
 
-                        // Updated Date Selector System (Cleaner outline look contrasting from standard blocks)
+                        // Date Selector System
                         if searchText.isEmpty {
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 10) {
@@ -138,7 +136,6 @@ struct HomeView: View {
                                                 } onFavorite: {
                                                     favoritesManager.toggleFavorite(match.id)
                                                 }
-                                                // Dynamic breathing glow applied to live match rows
                                                 .overlay(
                                                     RoundedRectangle(cornerRadius: 12)
                                                         .stroke(match.isLive ? Color.red : Color.clear, lineWidth: match.isLive ? 1.5 : 0)
@@ -241,7 +238,7 @@ struct HomeView: View {
     }
 }
 
-// --- REDESIGNED FINISHED MATCH CARD STRUCT (Matches image_5.png explicitly with unique vertical presentation layout) ---
+// --- VERTI-CONTAINER CAROUSEL CARD INTEGRATING ADVANCED LOGO DETECTOR ---
 struct FinishedMatchCarouselCard: View {
     let match: FeaturedMatch
     let onTap: () -> Void
@@ -255,54 +252,46 @@ struct FinishedMatchCarouselCard: View {
                     .lineLimit(1)
                 
                 HStack(spacing: 0) {
-                    // Left Side: Home Team Info
+                    // Home Side
                     VStack(spacing: 8) {
-                        AsyncImage(url: match.homeFlagURL) { phase in
-                            if let image = phase.image {
-                                image.resizable().scaledToFill()
-                            } else {
-                                Image(systemName: "sportscourt").resizable()
-                            }
-                        }
-                        .frame(width: 28, height: 28)
-                        .clipShape(Circle())
+                        TeamLogoView(
+                            teamName: match.homeTeam,
+                            localSpreadsheetURL: match.homeFlagURL,
+                            fallbackColor: match.homeFallbackColor,
+                            initials: match.getTeamInitials(from: match.homeTeam),
+                            size: 28
+                        )
                         
                         Text(match.homeTeam)
                             .font(.system(size: 12, weight: .semibold))
                             .foregroundColor(.primary)
                             .lineLimit(1)
-                            .multilineTextAlignment(.center)
                     }
                     .frame(maxWidth: .infinity)
                     
-                    // Center Pillar Partition displaying actual live/finished scorelines cleanly
                     Capsule()
                         .fill(Color.gray.opacity(0.3))
                         .frame(width: 2, height: 32)
                         .padding(.horizontal, 4)
                     
-                    // Right Side: Away Team Info
+                    // Away Side
                     VStack(spacing: 8) {
-                        AsyncImage(url: match.awayFlagURL) { phase in
-                            if let image = phase.image {
-                                image.resizable().scaledToFill()
-                            } else {
-                                Image(systemName: "sportscourt").resizable()
-                            }
-                        }
-                        .frame(width: 28, height: 28)
-                        .clipShape(Circle())
+                        TeamLogoView(
+                            teamName: match.awayTeam,
+                            localSpreadsheetURL: match.awayFlagURL,
+                            fallbackColor: match.awayFallbackColor,
+                            initials: match.getTeamInitials(from: match.awayTeam),
+                            size: 28
+                        )
                         
                         Text(match.awayTeam)
                             .font(.system(size: 12, weight: .semibold))
                             .foregroundColor(.primary)
                             .lineLimit(1)
-                            .multilineTextAlignment(.center)
                     }
                     .frame(maxWidth: .infinity)
                 }
                 
-                // Display scores if present, fallback gracefully to structural status layout values
                 Text(!match.homeScore.isEmpty && !match.awayScore.isEmpty ? "\(match.homeScore) - \(match.awayScore)" : "FINAL FT")
                     .font(.system(size: 10, weight: .bold))
                     .foregroundColor(.secondary)
@@ -311,13 +300,14 @@ struct FinishedMatchCarouselCard: View {
             .padding(.vertical, 14)
             .padding(.horizontal, 10)
             .frame(width: 155, height: 135)
-            .background(Color(.systemGray5).opacity(0.6)) // Darker contrast block
+            .background(Color(.systemGray5).opacity(0.6))
             .cornerRadius(16)
         }
         .buttonStyle(PlainButtonStyle())
     }
 }
 
+// --- GRID FEAT CARD INTEGRATING ADVANCED LOGO DETECTOR ---
 struct FeaturedMatchCard: View {
     let featured: FeaturedMatch
     let isFavorited: Bool
@@ -329,29 +319,31 @@ struct FeaturedMatchCard: View {
             VStack(spacing: 6) {
                 HStack {
                     Spacer()
-                    AsyncImage(url: featured.homeFlagURL) { phase in
-                        if let image = phase.image { image.resizable().scaledToFill() }
-                        else { Circle().fill(Color.gray.opacity(0.2)) }
-                    }
-                    .frame(width: 24, height: 24).clipShape(Circle())
+                    TeamLogoView(
+                        teamName: featured.homeTeam,
+                        localSpreadsheetURL: featured.homeFlagURL,
+                        fallbackColor: featured.homeFallbackColor,
+                        initials: featured.getTeamInitials(from: featured.homeTeam),
+                        size: 24
+                    )
                     
                     Text(featured.displayScore)
                         .font(.system(size: 14, weight: .bold, design: .rounded))
                         .foregroundColor(featured.isLive ? .red : .primary)
                     
-                    AsyncImage(url: featured.awayFlagURL) { phase in
-                        if let image = phase.image { image.resizable().scaledToFill() }
-                        else { Circle().fill(Color.gray.opacity(0.2)) }
-                    }
-                    .frame(width: 24, height: 24).clipShape(Circle())
+                    TeamLogoView(
+                        teamName: featured.awayTeam,
+                        localSpreadsheetURL: featured.awayFlagURL,
+                        fallbackColor: featured.awayFallbackColor,
+                        initials: featured.getTeamInitials(from: featured.awayTeam),
+                        size: 24
+                    )
                     Spacer()
                 }
                 
                 HStack(spacing: 4) {
                     Text(featured.homeTeam).lineLimit(1)
-                    Text("vs")
-                        .foregroundColor(.secondary)
-                        .font(.system(size: 10))
+                    Text("vs").foregroundColor(.secondary).font(.system(size: 10))
                     Text(featured.awayTeam).lineLimit(1)
                 }
                 .font(.system(size: 11, weight: .semibold))
@@ -391,7 +383,6 @@ struct FeaturedMatchCard: View {
     }
 }
 
-// --- REDESIGNED DATE CELL STRUCT (Contrasting outline capsule layout style) ---
 struct DateCell: View {
     let day: Int
     let isSelected: Bool
