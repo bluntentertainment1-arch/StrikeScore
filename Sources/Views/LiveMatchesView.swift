@@ -10,11 +10,11 @@ struct LiveMatchesView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 16) {
+                VStack(spacing: 12) {
                     if liveMatches.isEmpty {
                         VStack(spacing: 16) {
                             Image(systemName: "sportscourt")
-                                .font(.system(size: 60))
+                                .font(.system(size: 50))
                                 .foregroundColor(.gray)
                             Text("No live matches")
                                 .foregroundColor(.secondary)
@@ -82,79 +82,80 @@ struct LiveMatchRow: View {
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 16) {
+            HStack(spacing: 8) {
                 
-                // Home Team (FIXED: Integrated TeamLogoView Fallback initials Engine)
-                VStack(spacing: 6) {
+                // Home Team Focus
+                VStack(spacing: 4) {
                     TeamLogoView(
                         teamName: match.homeTeam,
                         localSpreadsheetURL: match.homeFlagURL,
                         fallbackColor: match.homeFallbackColor,
                         initials: match.getTeamInitials(from: match.homeTeam),
-                        size: 40
+                        size: 32 // Compact resolution size
                     )
 
                     Text(match.homeTeam)
-                        .font(.caption)
-                        .fontWeight(.semibold)
+                        .font(.system(size: 12, weight: .semibold))
                         .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
                 .frame(maxWidth: .infinity)
 
-                // Center Score Area
-                VStack(spacing: 6) {
-                    HStack(spacing: 4) {
+                // Center score info partition
+                VStack(spacing: 4) {
+                    HStack(spacing: 3) {
                         Circle()
                             .fill(Color.red)
-                            .frame(width: 6, height: 6)
+                            .frame(width: 5, height: 5)
                         Text("LIVE")
-                            .font(.system(size: 10, weight: .bold))
+                            .font(.system(size: 9, weight: .black))
                             .foregroundColor(.red)
                     }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
                     .background(Color.red.opacity(0.1))
-                    .cornerRadius(8)
+                    .cornerRadius(6)
 
                     Text(match.displayScore)
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
                         .monospacedDigit()
 
                     Text(match.competition)
-                        .font(.caption2)
+                        .font(.system(size: 9))
                         .foregroundColor(.secondary)
                         .lineLimit(1)
                 }
-                .frame(width: 100)
+                .frame(width: 85)
 
-                // Away Team (FIXED: Integrated TeamLogoView Fallback initials Engine)
-                VStack(spacing: 6) {
+                // Away Team Focus
+                VStack(spacing: 4) {
                     TeamLogoView(
                         teamName: match.awayTeam,
                         localSpreadsheetURL: match.awayFlagURL,
                         fallbackColor: match.awayFallbackColor,
                         initials: match.getTeamInitials(from: match.awayTeam),
-                        size: 40
+                        size: 32 // Compact resolution size
                     )
 
                     Text(match.awayTeam)
-                        .font(.caption)
-                        .fontWeight(.semibold)
+                        .font(.system(size: 12, weight: .semibold))
                         .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
                 .frame(maxWidth: .infinity)
 
-                // Favorite Button
+                // Favorite action link
                 Button(action: onFavorite) {
                     Image(systemName: isFavorited ? "heart.fill" : "heart")
-                        .font(.system(size: 16))
-                        .foregroundColor(isFavorited ? .red : .gray)
+                        .font(.system(size: 15))
+                        .foregroundColor(isFavorited ? .red : .gray.opacity(0.7))
                 }
                 .buttonStyle(PlainButtonStyle())
             }
-            .padding()
+            .padding(.vertical, 12)
+            .padding(.horizontal, 12)
             .background(Color(.systemGray6))
-            .cornerRadius(16)
+            .cornerRadius(14)
         }
         .buttonStyle(PlainButtonStyle())
     }
