@@ -3,6 +3,7 @@ import SwiftUI
 struct EditorialView: View {
     @StateObject private var viewModel = MatchesViewModel()
     @State private var selectedArticle: EditorialItem? = nil
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
@@ -34,47 +35,57 @@ struct EditorialView: View {
                                         Text(article.body)
                                             .font(.subheadline)
                                             .foregroundColor(.secondary)
-                                            .lineLimit(2)
+                                            .lineLimit(3)
                                             .multilineTextAlignment(.leading)
                                     }
                                     Spacer()
-                                    Image(systemName: "chevron.right")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
                                 }
                                 .padding()
                                 .background(Color(.systemGray6))
                                 .cornerRadius(12)
                             }
                             .buttonStyle(PlainButtonStyle())
-                            .padding(.horizontal)
                         }
                     }
                 }
-                .padding(.vertical)
+                .padding()
             }
-            .navigationTitle("Explore")
-            // Navigation destination dynamically swaps your view details without breaking stack context
-            .navigationDestination(item: $selectedArticle) { article in
-                ArticleDetailView(article: article, allArticles: viewModel.editorialItems, onSelectArticle: { nextArticle in
-                    selectedArticle = nextArticle // Changes pages natively on tap!
-                })
-            }
+            .navigationTitle("Editorial Feed")
+            .navigationBarTitleDisplayMode(.inline)
             .task {
                 await viewModel.loadCMSData()
             }
+            // --- BACKWARD COMPATIBLE NAVIGATION WRAPPER ---
+            .modifier(NavigationWrapperModifier(selectedArticle: $selectedArticle))
         }
     }
 }
 
-struct ArticleDetailView: View {
-    let article: EditorialItem
-    let allArticles: [EditorialItem]
-    var onSelectArticle: (EditorialItem) -> Void
+// MARK: - Backward Compatibility Navigation View Modifier
+struct NavigationWrapperModifier: ViewModifier {
+    @Binding var selectedArticle: EditorialItem?
     
-    var randomizedRelatedStories: [EditorialItem] {
-        allArticles.filter { $0.id != article.id }.shuffled().prefix(3).map { $0 }
+    func body(content: Content) -> some View {
+        if #available(iOS 17.0, *) {
+            content
+                .navigationDestination(item: $selectedArticle) { article in
+                    EditorialDetailView(article: article)
+                }
+        } else {
+            content
+                .sheet(item: $selectedArticle) { article in
+                    NavigationStack {
+                        EditorialDetailView(article: article)
+                    }
+                }
+        }
     }
+}
+
+// MARK: - Editorial Detail View Detail Screen
+struct EditorialDetailView: View {
+    let article: EditorialItem
+    @Environment(\.dismiss) private var dismiss
     
     var body: some View {
         ScrollView {
@@ -83,51 +94,24 @@ struct ArticleDetailView: View {
                     .font(.title)
                     .fontWeight(.bold)
                 
-                Text("Posted: \(article.datePosted)")
+                Text(article.datePosted)
                     .font(.caption)
                     .foregroundColor(.secondary)
                 
                 Divider()
                 
-                Text(article.fullContent.isEmpty ? article.body : article.fullContent)
+                Text(article.fullContent)
                     .font(.body)
                     .lineSpacing(6)
-                
-                Divider().padding(.vertical)
-                
-                // Related Stories
-                if !randomizedRelatedStories.isEmpty {
-                    Text("Related Stories")
-                        .font(.headline)
-                        .padding(.bottom, 4)
-                    
-                    VStack(spacing: 12) {
-                        ForEach(randomizedRelatedStories) { story in
-                            Button(action: { onSelectArticle(story) }) { // Updates action binder
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text(story.headline)
-                                        .font(.system(size: 13, weight: .bold))
-                                        .foregroundColor(.primary)
-                                        .lineLimit(1)
-                                    Text(story.body)
-                                        .font(.system(size: 11))
-                                        .foregroundColor(.secondary)
-                                        .lineLimit(2)
-                                        .multilineTextAlignment(.leading)
-                                }
-                                .padding()
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Color(.systemGray6))
-                                .cornerRadius(12)
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                        }
-                    }
-                }
             }
             .padding()
         }
-        .navigationTitle("Story Details")
+        .navigationTitle("Article")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Done") { dismiss() }
+            }
+        }
     }
 }
