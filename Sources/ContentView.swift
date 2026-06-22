@@ -8,21 +8,24 @@ struct ContentView: View {
             // Tab 1: Matches / Home Feed
             HomeView()
                 .tabItem {
-                    Label("Matches", systemName: "sportscourt")
+                    // FIXED: Changed systemName to systemImage
+                    Label("Matches", systemImage: "sportscourt")
                 }
                 .tag(0)
             
             // Tab 2: League Tables
             StandingsTableView()
                 .tabItem {
-                    Label("Standings", systemName: "tablecells")
+                    // FIXED: Changed systemName to systemImage
+                    Label("Standings", systemImage: "tablecells")
                 }
                 .tag(1)
             
             // Tab 3: Saved Favorites
             FavoritesView()
                 .tabItem {
-                    Label("Favorites", systemName: "star.fill")
+                    // FIXED: Changed systemName to systemImage
+                    Label("Favorites", systemImage: "star.fill")
                 }
                 .tag(2)
         }
