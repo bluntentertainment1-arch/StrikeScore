@@ -1,8 +1,12 @@
 import SwiftUI
+import AppTrackingTransparency
+import AdSupport
 
 struct OnboardingView: View {
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
+    @AppStorage("hasRequestedATT") private var hasRequestedATT = false
     @State private var currentPage = 0
+    @State private var showSplash = false
     
     let pages = [
         OnboardingPage(
@@ -28,7 +32,9 @@ struct OnboardingView: View {
     ]
     
     var body: some View {
-        if hasSeenOnboarding {
+        if showSplash {
+            SplashScreenView()
+        } else if hasSeenOnboarding {
             ContentView()
         } else {
             ZStack {
@@ -50,6 +56,11 @@ struct OnboardingView: View {
                             }
                         } else {
                             hasSeenOnboarding = true
+                            requestATT()
+                            // Show splash after onboarding completes
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                showSplash = true
+                            }
                         }
                     }) {
                         Text(currentPage < pages.count - 1 ? "Next" : "Get Started")
@@ -61,6 +72,27 @@ struct OnboardingView: View {
                             .cornerRadius(12)
                     }
                     .padding()
+                }
+            }
+        }
+    }
+    
+    private func requestATT() {
+        if #available(iOS 14, *) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                ATTrackingManager.requestTrackingAuthorization { status in
+                    switch status {
+                    case .authorized:
+                        AppLogger.shared.log("ATT authorized")
+                    case .denied:
+                        AppLogger.shared.log("ATT denied")
+                    case .notDetermined:
+                        AppLogger.shared.log("ATT not determined")
+                    case .restricted:
+                        AppLogger.shared.log("ATT restricted")
+                    @unknown default:
+                        AppLogger.shared.log("ATT unknown status")
+                    }
                 }
             }
         }
