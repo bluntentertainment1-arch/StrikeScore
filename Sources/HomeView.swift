@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HomeView: View {
     @StateObject private var viewModel = MatchesViewModel()
+    @State private var searchText = "" // Fixed: Kept locally to resolve property-wrapper binding issues
     @State private var selectedTab = 0
     
     var body: some View {
@@ -11,7 +12,7 @@ struct HomeView: View {
                 ScrollView {
                     VStack(spacing: 20) {
                         // Search & Date Selectors
-                        SearchBarView(searchText: $viewModel.searchText)
+                        SearchBarView(searchText: $searchText)
                         
                         DateSelectorBar(selectedDate: $viewModel.selectedDate)
                         
@@ -21,7 +22,7 @@ struct HomeView: View {
                         }
                         
                         // Current / Live Matches Stream Grid
-                        MatchesGridSection(viewModel: viewModel)
+                        MatchesGridSection(viewModel: viewModel, searchText: searchText)
                     }
                     .padding(.vertical)
                 }
@@ -35,7 +36,7 @@ struct HomeView: View {
             }
             .tag(0)
             
-            // Tab 2: New League Standings View
+            // Tab 2: League Standings View
             StandingsTableView()
                 .tabItem {
                     Label("Table", systemImage: "tablecells")
@@ -49,11 +50,11 @@ struct HomeView: View {
                 }
                 .tag(2)
         }
-        .accentColor(.green) // Custom matching layout look
+        .accentColor(.green)
     }
 }
 
-// MARK: - Sub-Section Components for Clean Layout Structure
+// MARK: - Sub-Section Components
 
 struct SearchBarView: View {
     @Binding var searchText: String
@@ -62,7 +63,7 @@ struct SearchBarView: View {
         HStack {
             Image(systemName: "magnifyingglass")
                 .foregroundColor(.secondary)
-            TextField("Search matches, teams, competitions...", text: $searchText)
+            TextField("Search matches, teams...", text: $searchText)
                 .textFieldStyle(PlainTextFieldStyle())
                 .autocorrectionDisabled()
             if !searchText.isEmpty {
@@ -184,11 +185,12 @@ struct FinishedMatchCarouselCard: View {
 
 struct MatchesGridSection: View {
     @ObservedObject var viewModel: MatchesViewModel
+    let searchText: String // Passed down cleanly from parent scope
     @State private var selectedMatch: FeaturedMatch? = nil
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(viewModel.searchText.isEmpty ? "Fixtures Stream" : "Search Results")
+            Text(searchText.isEmpty ? "Fixtures Stream" : "Search Results")
                 .font(.title3)
                 .fontWeight(.bold)
                 .padding(.horizontal)
@@ -215,7 +217,6 @@ struct MatchesGridSection: View {
                             .overlay(
                                 RoundedRectangle(cornerRadius: 16)
                                     .stroke(match.status.lowercased() == "live" ? Color.green : Color.clear, lineWidth: 1.5)
-                                    .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: match.status)
                             )
                             .padding(.horizontal)
                     }
@@ -223,8 +224,17 @@ struct MatchesGridSection: View {
             }
         }
         .sheet(item: $selectedMatch) { selectedMatch in
-            // Dynamic odds calculation initialization logic handled within view detail structure!
             FeaturedMatchDetailView(match: selectedMatch)
         }
+    }
+}
+
+// MARK: - Global Shared Component Fallback
+/// Adding this component architecture fixes the Scope compilation crash visible in your `FavoritesView.swift:36` log.
+struct FeaturedMatchCard: View {
+    let match: FeaturedMatch
+    
+    var body: some View {
+        MatchCardView(match: match)
     }
 }
