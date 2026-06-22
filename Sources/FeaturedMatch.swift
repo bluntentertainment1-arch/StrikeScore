@@ -19,20 +19,23 @@ struct FeaturedMatch: Identifiable, Codable, Hashable {
     let priority: Int
     let active: Bool
 
+    // Enhanced properties verifying statuses comprehensively so they route to live rows accurately
+    var isCurrentlyLive: Bool {
+        return isLive || status.uppercased() == "LIVE" || status.uppercased() == "IN_PLAY"
+    }
+
     var isVisible: Bool {
         guard active else { return false }
-        if isLive { return true }
+        if isCurrentlyLive { return true }
         
         let formatter = ISO8601DateFormatter()
         if let date = formatter.date(from: matchDate) {
-            // Include matches running within rolling window securely
             let oneDayAgo = Calendar.current.date(byAdding: .day, value: -1, to: Date())!
             return date > oneDayAgo
         }
         return true
     }
 
-    // FIXED: Smart fallback string URL matching engine 
     var homeFlagURL: URL? {
         if homeFlag.hasPrefix("http") {
             return URL(string: homeFlag)
@@ -40,7 +43,6 @@ struct FeaturedMatch: Identifiable, Codable, Hashable {
         if homeFlag.count == 2 {
             return URL(string: "https://flagcdn.com/w80/\(homeFlag.lowercased()).png")
         }
-        // If it's a structural name like "Bournemouth" or "Hull City", fall back to sports database
         let processedName = homeTeam.lowercased()
             .replacingOccurrences(of: " ", with: "-")
             .addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) ?? ""
@@ -77,7 +79,8 @@ struct FeaturedMatch: Identifiable, Codable, Hashable {
     }
 
     var displayScore: String {
-        if status == "TIMED" || homeScore.isEmpty || awayScore.isEmpty {
+        // Populates accurate score lines, falling back only for scheduled entries
+        if status.uppercased() == "TIMED" || (homeScore.isEmpty && awayScore.isEmpty) {
             return "vs"
         }
         return "\(homeScore) - \(awayScore)"
