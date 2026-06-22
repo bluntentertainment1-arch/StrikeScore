@@ -9,20 +9,16 @@ struct HomeView: View {
     @State private var selectedMatch: FeaturedMatch? = nil
     @State private var selectedArticleFromSearch: EditorialItem? = nil
     
-    // Target date matching calculations for standard unfiltered views
     private var targetFilteringDate: Date {
         Calendar.current.date(byAdding: .day, value: selectedDate, to: Date())!
     }
 
-    // --- SWIPE CAROUSEL ENGINE: FINISHED MATCHES ---
     var finishedMatches: [FeaturedMatch] {
         viewModel.featuredMatches.filter { $0.status.uppercased() == "FINISHED" }
     }
 
-    // --- WORKING GLOBAL SEARCH ENGINE (BYPASSES DATES IF QUERY ACTIVE) ---
     var filteredMatches: [FeaturedMatch] {
         if searchText.isEmpty {
-            // Standard Flow: Filter strictly by selected day cell
             return viewModel.featuredMatches.filter { match in
                 let formatter = ISO8601DateFormatter()
                 guard let matchDateObj = formatter.date(from: match.matchDate) else { return false }
@@ -30,18 +26,16 @@ struct HomeView: View {
             }
             .sorted { $0.matchTime < $1.matchTime }
         } else {
-            // Global Search Flow: Ignore date cells, scan entire array
             let query = searchText.lowercased()
             return viewModel.featuredMatches.filter { match in
                 match.homeTeam.lowercased().contains(query) ||
                 match.awayTeam.lowercased().contains(query) ||
                 match.competition.lowercased().contains(query)
             }
-            .sorted { $0.matchDate < $1.matchDate } // Chronological by date order
+            .sorted { $0.matchDate < $1.matchDate }
         }
     }
 
-    // --- GLOBAL NEWS SEARCH ENGINE ---
     var filteredNews: [EditorialItem] {
         guard !searchText.isEmpty else { return [] }
         let query = searchText.lowercased()
@@ -55,7 +49,7 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // Search Field Layout
+                // Search Bar Section
                 HStack {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(.secondary)
@@ -79,8 +73,7 @@ struct HomeView: View {
                 ScrollView {
                     VStack(spacing: 16) {
                         
-                        // 1. SWIPE FROM RIGHT TO LEFT CAROUSEL (FINISHED MATCHES)
-                        // Placed exactly between search bar and date section
+                        // Swipeable Finished Matches Carousel (Swipe Right to Left)
                         if searchText.isEmpty && !finishedMatches.isEmpty {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("Recent Results")
@@ -101,7 +94,7 @@ struct HomeView: View {
                             }
                         }
 
-                        // 2. DATE SELECTOR SYSTEM (Hidden when searching globally)
+                        // Date Selector System (Hidden during global text search)
                         if searchText.isEmpty {
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 10) {
@@ -115,16 +108,13 @@ struct HomeView: View {
                             }
                         }
 
-                        // 3. MAIN DISPLAY ROUTER
                         if viewModel.isLoading {
                             ProgressView("Loading sports data...")
                                 .padding(.top, 40)
                         } else {
-                            // Render Global Search Block if Query string is active
                             if !searchText.isEmpty {
                                 VStack(alignment: .leading, spacing: 20) {
                                     
-                                    // Matched Fixtures Block
                                     Text("Matches (\(filteredMatches.count))")
                                         .font(.headline)
                                         .padding(.horizontal)
@@ -149,7 +139,6 @@ struct HomeView: View {
                                     
                                     Divider().padding(.horizontal)
                                     
-                                    // Matched News Block
                                     Text("News Articles (\(filteredNews.count))")
                                         .font(.headline)
                                         .padding(.horizontal)
@@ -185,7 +174,6 @@ struct HomeView: View {
                                     }
                                 }
                             } else {
-                                // Default Static Dashboard View
                                 if filteredMatches.isEmpty {
                                     VStack(spacing: 12) {
                                         Image(systemName: "sportscourt")
@@ -212,7 +200,6 @@ struct HomeView: View {
                     }
                     .padding(.vertical)
                 }
-                // FIXED: Dismiss keyboard cleanly when user drags or taps outside field area
                 .onTapGesture {
                     UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                 }
@@ -232,7 +219,7 @@ struct HomeView: View {
     }
 }
 
-// --- VISUAL IMPROVEMENT COMPONENT: SWIPEABLE RESULTS CARD ---
+// --- ADDED MISSING RECENT RESULTS CAROUSEL CARD ---
 struct FinishedMatchCarouselCard: View {
     let match: FeaturedMatch
     let onTap: () -> Void
@@ -248,8 +235,12 @@ struct FinishedMatchCarouselCard: View {
                 HStack(spacing: 12) {
                     Spacer()
                     VStack(spacing: 4) {
-                        AsyncImage(url: match.homeFlagURL) { p in
-                            p.image?.resizable().scaledToFill() ?? Image(systemName: "sportscourt").resizable()
+                        AsyncImage(url: match.homeFlagURL) { phase in
+                            if let image = phase.image {
+                                image.resizable().scaledToFill()
+                            } else {
+                                Image(systemName: "sportscourt").resizable()
+                            }
                         }
                         .frame(width: 20, height: 20).clipShape(Circle())
                         Text(match.homeTeam).font(.caption2).fontWeight(.semibold).lineLimit(1)
@@ -265,8 +256,12 @@ struct FinishedMatchCarouselCard: View {
                         .cornerRadius(6)
                     
                     VStack(spacing: 4) {
-                        AsyncImage(url: match.awayFlagURL) { p in
-                            p.image?.resizable().scaledToFill() ?? Image(systemName: "sportscourt").resizable()
+                        AsyncImage(url: match.awayFlagURL) { phase in
+                            if let image = phase.image {
+                                image.resizable().scaledToFill()
+                            } else {
+                                Image(systemName: "sportscourt").resizable()
+                            }
                         }
                         .frame(width: 20, height: 20).clipShape(Circle())
                         Text(match.awayTeam).font(.caption2).fontWeight(.semibold).lineLimit(1)
@@ -286,5 +281,117 @@ struct FinishedMatchCarouselCard: View {
             .cornerRadius(12)
         }
         .buttonStyle(PlainButtonStyle())
+    }
+}
+
+// --- ADDED MISSING FEATURED MATCH CARD STRUCT ---
+struct FeaturedMatchCard: View {
+    let featured: FeaturedMatch
+    let isFavorited: Bool
+    let onTap: () -> Void
+    let onFavorite: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(spacing: 6) {
+                HStack {
+                    Spacer()
+                    AsyncImage(url: featured.homeFlagURL) { phase in
+                        if let image = phase.image { image.resizable().scaledToFill() }
+                        else { Circle().fill(Color.gray.opacity(0.2)) }
+                    }
+                    .frame(width: 24, height: 24).clipShape(Circle())
+                    
+                    Text(featured.displayScore)
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                    
+                    AsyncImage(url: featured.awayFlagURL) { phase in
+                        if let image = phase.image { image.resizable().scaledToFill() }
+                        else { Circle().fill(Color.gray.opacity(0.2)) }
+                    }
+                    .frame(width: 24, height: 24).clipShape(Circle())
+                    Spacer()
+                }
+                
+                HStack(spacing: 4) {
+                    Text(featured.homeTeam).lineLimit(1)
+                    Text("vs")
+                        .foregroundColor(.secondary)
+                        .font(.system(size: 10))
+                    Text(featured.awayTeam).lineLimit(1)
+                }
+                .font(.system(size: 11, weight: .semibold))
+
+                Text(featured.competition)
+                    .font(.system(size: 9))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+
+                if featured.isLive {
+                    HStack(spacing: 2) {
+                        Circle().fill(Color.red).frame(width: 6, height: 6)
+                        Text("LIVE").font(.system(size: 8, weight: .bold)).foregroundColor(.red)
+                    }
+                }
+            }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 4)
+            .frame(maxWidth: .infinity)
+            .background(Color(.systemGray6))
+            .cornerRadius(12)
+            .overlay(
+                Button(action: onFavorite) {
+                    Image(systemName: isFavorited ? "heart.fill" : "heart")
+                        .font(.system(size: 10))
+                        .foregroundColor(isFavorited ? .red : .gray)
+                        .padding(4)
+                        .background(Color.black.opacity(0.1))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(PlainButtonStyle())
+                .padding(4),
+                alignment: .topTrailing
+            )
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+// --- ADDED MISSING DATE CELL STRUCT ---
+struct DateCell: View {
+    let day: Int
+    let isSelected: Bool
+    let action: () -> Void
+
+    var dateLabel: String {
+        let targetDate = Calendar.current.date(byAdding: .day, value: day, to: Date())!
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd MMM"
+        return formatter.string(from: targetDate)
+    }
+
+    var dayName: String {
+        if day == 0 { return "Today" }
+        let targetDate = Calendar.current.date(byAdding: .day, value: day, to: Date())!
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEE"
+        return formatter.string(from: targetDate)
+    }
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Text(dayName)
+                    .font(.system(size: 10, weight: .bold))
+                    .textCase(.uppercase)
+                Text(dateLabel)
+                    .font(.system(size: 13, weight: .semibold))
+            }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
+            .background(isSelected ? Color.green : Color(.systemGray6))
+            .foregroundColor(isSelected ? .white : .primary)
+            .cornerRadius(10)
+        }
     }
 }
