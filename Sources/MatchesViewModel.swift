@@ -15,6 +15,14 @@ class MatchesViewModel: ObservableObject {
         featuredMatches.filter { $0.isLive || $0.status.uppercased() == "LIVE" || $0.status.uppercased() == "IN_PLAY" }
     }
 
+    // FIX: Added the missing computed property to support the view's search filter
+    func filteredMatches(contains query: String) -> [FeaturedMatch] {
+        guard !query.isEmpty else { return featuredMatches }
+        return featuredMatches.filter { match in
+            match.strTeam.localizedCaseInsensitiveContains(query) // Assumes strTeam is your match model identifier
+        }
+    }
+
     func loadCMSData() async {
         isLoading = true
         errorMessage = nil
