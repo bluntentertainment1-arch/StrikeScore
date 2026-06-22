@@ -12,12 +12,10 @@ struct HomeView: View {
         Calendar.current.date(byAdding: .day, value: selectedDate, to: Date())!
     }
 
-    // Filter only ongoing active live matches for the prominent top carousel
     var activeLiveMatches: [FeaturedMatch] {
         viewModel.featuredMatches.filter { $0.isCurrentlyLive }
     }
 
-    // Filter standard scheduled fixtures matching the selected date bubble
     var filteredFixturesFeed: [FeaturedMatch] {
         if searchText.isEmpty {
             return viewModel.featuredMatches.filter { match in
@@ -37,11 +35,11 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 22) {
+                VStack(spacing: 16) {
                     
-                    // 1. Horizontal Date Picker Carousel
+                    // 1. Horizontal Date Picker Slider
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
+                        HStack(spacing: 10) {
                             ForEach(-3...7, id: \.self) { day in
                                 DateBubbleView(day: day, isSelected: selectedDate == day) {
                                     selectedDate = day
@@ -51,21 +49,22 @@ struct HomeView: View {
                         .padding(.horizontal)
                     }
                     
-                    // 2. Prominent Horizontal Live Slider (Only shows if live matches are running)
+                    // 2. Optimized Live Slider Horizontal Row
                     if !activeLiveMatches.isEmpty && searchText.isEmpty {
-                        VStack(alignment: .leading, spacing: 10) {
-                            HStack {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(spacing: 6) {
                                 Circle()
                                     .fill(Color.red)
-                                    .frame(width: 8, height: 8)
+                                    .frame(width: 6, height: 6)
                                 Text("LIVE MATCHES")
-                                    .font(.system(size: 14, weight: .black))
+                                    .font(.system(size: 11, weight: .black))
                                     .foregroundColor(.red)
+                                    .tracking(0.5)
                             }
                             .padding(.horizontal)
                             
                             ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 14) {
+                                HStack(spacing: 10) {
                                     ForEach(activeLiveMatches) { match in
                                         Button(action: { selectedMatch = match }) {
                                             HomeLiveCarouselCard(match: match)
@@ -74,30 +73,30 @@ struct HomeView: View {
                                     }
                                 }
                                 .padding(.horizontal)
-                                .padding(.bottom, 4)
+                                .padding(.bottom, 2)
                             }
                         }
                     }
                     
-                    // 3. Clean Main Fixtures Feed Section
-                    VStack(alignment: .leading, spacing: 12) {
+                    // 3. Compact Main Fixtures Feed Section
+                    VStack(alignment: .leading, spacing: 10) {
                         Text(searchText.isEmpty ? "Fixtures Feed" : "Search Results")
-                            .font(.system(size: 18, weight: .bold))
+                            .font(.system(size: 16, weight: .bold))
                             .padding(.horizontal)
                         
                         if filteredFixturesFeed.isEmpty {
                             VStack(spacing: 8) {
                                 Image(systemName: "sportscourt")
-                                    .font(.title)
+                                    .font(.title3)
                                     .foregroundColor(.secondary)
                                 Text("No fixtures scheduled for this day")
-                                    .font(.subheadline)
+                                    .font(.caption)
                                     .foregroundColor(.secondary)
                             }
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 40)
+                            .padding(.vertical, 30)
                         } else {
-                            LazyVStack(spacing: 12) {
+                            LazyVStack(spacing: 10) {
                                 ForEach(filteredFixturesFeed) { match in
                                     MatchCardView(match: match, onTap: {
                                         selectedMatch = match
@@ -108,7 +107,7 @@ struct HomeView: View {
                         }
                     }
                 }
-                .padding(.vertical)
+                .padding(.vertical, 12)
             }
             .navigationTitle("StrikeScore")
             .searchable(text: $searchText, prompt: "Search teams...")
@@ -122,7 +121,6 @@ struct HomeView: View {
     }
 }
 
-// MARK: - FIXED: Added Missing DateBubbleView Subcomponent
 struct DateBubbleView: View {
     let day: Int
     let isSelected: Bool
@@ -152,89 +150,86 @@ struct DateBubbleView: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 3) {
+            VStack(spacing: 2) {
                 Text(dayName)
-                    .font(.system(size: 9, weight: .bold))
-                    .tracking(0.5)
+                    .font(.system(size: 8, weight: .bold))
                 Text("\(dateLabel) \(monthName)")
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
             }
-            .padding(.vertical, 10)
-            .padding(.horizontal, 14)
-            .frame(minWidth: 76)
-            .background(isSelected ? Color.green : Color.clear)
+            .padding(.vertical, 8)
+            .padding(.horizontal, 10)
+            .frame(minWidth: 70)
+            .background(isSelected ? Color.green : Color(.systemGray6))
             .foregroundColor(isSelected ? .white : .primary)
-            .cornerRadius(12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(isSelected ? Color.clear : Color(.systemGray4), lineWidth: isSelected ? 0 : 1)
-            )
+            .cornerRadius(10)
         }
         .buttonStyle(PlainButtonStyle())
     }
 }
 
-// MARK: - Premium Horizontal Live Card for Home Layout
 struct HomeLiveCarouselCard: View {
     let match: FeaturedMatch
     
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 8) {
             Text(match.competition.uppercased())
-                .font(.system(size: 10, weight: .bold))
+                .font(.system(size: 9, weight: .bold))
                 .foregroundColor(.secondary)
                 .lineLimit(1)
             
-            HStack(spacing: 16) {
-                // Home Team
-                VStack(spacing: 6) {
+            HStack(spacing: 6) {
+                // Home Team Box
+                VStack(spacing: 4) {
                     TeamLogoView(
                         teamName: match.homeTeam,
                         localSpreadsheetURL: match.homeFlagURL,
                         fallbackColor: match.homeFallbackColor,
                         initials: match.getTeamInitials(from: match.homeTeam),
-                        size: 34
+                        size: 26
                     )
                     Text(match.homeTeam)
-                        .font(.system(size: 12, weight: .bold))
+                        .font(.system(size: 11, weight: .bold))
                         .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
-                .frame(width: 80)
+                .frame(width: 75)
                 
-                // Score Center
+                // Live Score Block
                 VStack(spacing: 2) {
                     Text(match.displayScore)
-                        .font(.system(size: 20, weight: .black, design: .rounded))
+                        .font(.system(size: 16, weight: .black, design: .rounded))
                         .foregroundColor(.green)
                     Text(match.status)
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.system(size: 8, weight: .black))
                         .foregroundColor(.red)
                 }
+                .frame(width: 50)
                 
-                // Away Team
-                VStack(spacing: 6) {
+                // Away Team Box
+                VStack(spacing: 4) {
                     TeamLogoView(
                         teamName: match.awayTeam,
                         localSpreadsheetURL: match.awayFlagURL,
                         fallbackColor: match.awayFallbackColor,
                         initials: match.getTeamInitials(from: match.awayTeam),
-                        size: 34
+                        size: 26
                     )
                     Text(match.awayTeam)
-                        .font(.system(size: 12, weight: .bold))
+                        .font(.system(size: 11, weight: .bold))
                         .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
-                .frame(width: 80)
+                .frame(width: 75)
             }
         }
-        .padding(.vertical, 14)
-        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
         .background(Color(.secondarySystemGroupedBackground))
-        .cornerRadius(16)
-        .shadow(color: Color.black.opacity(0.06), radius: 6, x: 0, y: 3)
+        .cornerRadius(12)
+        .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color.red.opacity(0.2), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.red.opacity(0.15), lineWidth: 1)
         )
     }
 }
