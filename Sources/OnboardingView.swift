@@ -149,22 +149,3 @@ struct OnboardingPageView: View {
         }
     }
 }
-
-// Fallback dummy view if your project lacks an explicit custom structure named SplashScreenView
-struct SplashScreenView: View {
-    var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-            VStack(spacing: 16) {
-                Image(systemName: "sportscourt.fill")
-                    .font(.system(size: 80))
-                    .foregroundColor(.green)
-                Text("STRIKESCORE")
-                    .font(.title)
-                    .fontWeight(.black)
-                    .foregroundColor(.white)
-                    .tracking(4)
-            }
-        }
-    }
-}
