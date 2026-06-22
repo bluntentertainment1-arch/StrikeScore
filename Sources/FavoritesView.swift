@@ -1,14 +1,14 @@
 import SwiftUI
 
 struct FavoritesView: View {
-    @ObservedObject private var favoritesManager = FavoritesManager.shared
+    private var favoritesManager = FavoritesManager.shared
+    @State private var favoriteMatchesList: [FeaturedMatch] = []
     @State private var selectedMatch: FeaturedMatch? = nil
     
     var body: some View {
         NavigationStack {
             Group {
-                // Fixed: Reading base array lists directly to clean up DynamicMember wrappers
-                if favoritesManager.favorites.isEmpty {
+                if favoriteMatchesList.isEmpty {
                     VStack(spacing: 12) {
                         Image(systemName: "star.slash")
                             .font(.system(size: 48))
@@ -23,7 +23,7 @@ struct FavoritesView: View {
                     }
                 } else {
                     List {
-                        ForEach(favoritesManager.favorites) { match in
+                        ForEach(favoriteMatchesList) { match in
                             MatchCardView(match: match, onTap: {
                                 selectedMatch = match
                             })
@@ -40,13 +40,23 @@ struct FavoritesView: View {
             .sheet(item: $selectedMatch) { match in
                 FeaturedMatchDetailView(match: match)
             }
+            .onAppear {
+                syncFavorites()
+            }
         }
+    }
+    
+    private func syncFavorites() {
+        // Safe context read to bypass dynamic wrappers compile error safely
+        self.favoriteMatchesList = favoritesManager.favoriteMatches
     }
     
     private func deleteFavorite(at offsets: IndexSet) {
         for index in offsets {
-            let match = favoritesManager.favorites[index]
-            favoritesManager.toggle(match) // Fixed: Stripped erroneous label parameter
+            let match = favoriteMatchesList[index]
+            // Accessing internal tracking functions securely without label or wrapper blocks
+            favoritesManager.toggleFavorite(match: match)
         }
+        syncFavorites()
     }
 }
