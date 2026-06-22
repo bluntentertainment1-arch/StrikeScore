@@ -3,22 +3,6 @@ import SwiftUI
 struct FeaturedMatchDetailView: View {
     let match: FeaturedMatch
     @Environment(\.dismiss) private var dismiss
-    
-    // --- RUNTIME DETERMINISTIC ODDS ENGINE ---
-    private var simulatedOdds: (home: String, draw: String, away: String) {
-        let homeWeight = match.homeTeam.utf8.reduce(0) { $0 + Int($1) }
-        let awayWeight = match.awayTeam.utf8.reduce(0) { $0 + Int($1) }
-        
-        let baseHome = 1.2 + Double(homeWeight % 250) / 100.0
-        let baseAway = 1.2 + Double(awayWeight % 250) / 100.0
-        let baseDraw = 2.1 + Double((homeWeight + awayWeight) % 150) / 100.0
-        
-        return (
-            String(format: "%.2f", baseHome),
-            String(format: "%.2f", baseDraw),
-            String(format: "%.2f", baseAway)
-        )
-    }
 
     var body: some View {
         NavigationStack {
@@ -73,21 +57,25 @@ struct FeaturedMatchDetailView: View {
                     .cornerRadius(20)
                     .padding(.horizontal)
                     
-                    // Simulated Betting Market Odds Display
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Simulated Full-Time Odds")
-                            .font(.caption)
-                            .fontWeight(.bold)
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal)
-                        
-                        HStack(spacing: 12) {
-                            OddsBox(label: "1 (Home)", value: simulatedOdds.home)
-                            OddsBox(label: "X (Draw)", value: simulatedOdds.draw)
-                            OddsBox(label: "2 (Away)", value: simulatedOdds.away)
+                    // --- DISPLAY ADVERTISEMENT BANNER CONTAINER ---
+                    VStack(spacing: 6) {
+                        // Dynamic frame fallback mapping standard AdMob/Inline display configurations safely
+                        ZStack {
+                            Color(.systemGray5)
+                            
+                            VStack(spacing: 4) {
+                                Image(systemName: "rectangle.inset.filled.and.person.filled")
+                                    .font(.title2)
+                                    .foregroundColor(.secondary)
+                                Text("SPONSORED ADVERTISEMENT")
+                                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                    .foregroundColor(.secondary)
+                            }
                         }
-                        .padding(.horizontal)
+                        .frame(height: 70) // Perfect matching allocation for standard banner dimensions
+                        .cornerRadius(12)
                     }
+                    .padding(.horizontal)
 
                     // Key Match Information Card Section
                     VStack(alignment: .leading, spacing: 14) {
@@ -134,26 +122,6 @@ struct FeaturedMatchDetailView: View {
 }
 
 // MARK: - Helper Layout Components
-
-struct OddsBox: View {
-    let label: String
-    let value: String
-    
-    var body: some View {
-        VStack(spacing: 4) {
-            Text(label)
-                .font(.system(size: 11, weight: .bold))
-                .foregroundColor(.secondary)
-            Text(value)
-                .font(.system(size: 16, weight: .black, design: .rounded))
-                .foregroundColor(.green)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 10)
-        .background(Color(.systemGray6))
-        .cornerRadius(10)
-    }
-}
 
 struct InfoDetailRow: View {
     let title: String
