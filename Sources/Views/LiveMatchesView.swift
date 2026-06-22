@@ -5,7 +5,6 @@ struct LiveMatchesView: View {
     @StateObject private var favoritesManager = FavoritesManager.shared
     @State private var selectedMatch: FeaturedMatch? = nil
     
-    // Smooth pulse state variable to drive the custom navigation dot animation
     @State private var pulseAnimation = false
 
     var body: some View {
@@ -40,10 +39,8 @@ struct LiveMatchesView: View {
                 }
                 .padding(.vertical)
             }
-            // FIXED: Title updated to "Live"
             .navigationTitle("Live")
             .navigationBarTitleDisplayMode(.inline)
-            // Added glowing green icon next to the navigation layout header
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     HStack(spacing: 4) {
@@ -73,7 +70,7 @@ struct LiveMatchesView: View {
     }
 
     private var liveMatches: [FeaturedMatch] {
-        viewModel.featuredMatches.filter { $0.isLive }
+        viewModel.featuredMatches.filter { $0.isLive || $0.status.uppercased() == "LIVE" || $0.status.uppercased() == "IN_PLAY" }
     }
 }
 
@@ -86,15 +83,16 @@ struct LiveMatchRow: View {
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 16) {
-                // Home team
+                
+                // Home Team (FIXED: Integrated TeamLogoView Fallback initials Engine)
                 VStack(spacing: 6) {
-                    AsyncImage(url: match.homeFlagURL) { image in
-                        image.resizable().scaledToFill()
-                    } placeholder: {
-                        Circle().fill(Color.gray.opacity(0.3))
-                    }
-                    .frame(width: 40, height: 40)
-                    .clipShape(Circle())
+                    TeamLogoView(
+                        teamName: match.homeTeam,
+                        localSpreadsheetURL: match.homeFlagURL,
+                        fallbackColor: match.homeFallbackColor,
+                        initials: match.getTeamInitials(from: match.homeTeam),
+                        size: 40
+                    )
 
                     Text(match.homeTeam)
                         .font(.caption)
@@ -103,7 +101,7 @@ struct LiveMatchRow: View {
                 }
                 .frame(maxWidth: .infinity)
 
-                // Center info
+                // Center Score Area
                 VStack(spacing: 6) {
                     HStack(spacing: 4) {
                         Circle()
@@ -129,15 +127,15 @@ struct LiveMatchRow: View {
                 }
                 .frame(width: 100)
 
-                // Away team
+                // Away Team (FIXED: Integrated TeamLogoView Fallback initials Engine)
                 VStack(spacing: 6) {
-                    AsyncImage(url: match.awayFlagURL) { image in
-                        image.resizable().scaledToFill()
-                    } placeholder: {
-                        Circle().fill(Color.gray.opacity(0.3))
-                    }
-                    .frame(width: 40, height: 40)
-                    .clipShape(Circle())
+                    TeamLogoView(
+                        teamName: match.awayTeam,
+                        localSpreadsheetURL: match.awayFlagURL,
+                        fallbackColor: match.awayFallbackColor,
+                        initials: match.getTeamInitials(from: match.awayTeam),
+                        size: 40
+                    )
 
                     Text(match.awayTeam)
                         .font(.caption)
@@ -146,7 +144,7 @@ struct LiveMatchRow: View {
                 }
                 .frame(maxWidth: .infinity)
 
-                // Favorite button
+                // Favorite Button
                 Button(action: onFavorite) {
                     Image(systemName: isFavorited ? "heart.fill" : "heart")
                         .font(.system(size: 16))
