@@ -31,55 +31,21 @@ struct EditorialView: View {
                 await viewModel.loadCMSData()
             }
             .sheet(item: $selectedArticle) { article in
-                // Pass full view model along so the sheet can extract sibling records for related recommendations
                 ArticleDetailView(article: article, allArticles: viewModel.editorialItems)
             }
         }
     }
 }
 
-struct EditorialCard: View {
-    let item: EditorialItem
-    let onTap: () -> Void
-    
-    var body: some View {
-        Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 12) {
-                Text(item.headline)
-                    .font(.headline)
-                    .foregroundColor(.primary)
-                    .multilineTextAlignment(.leading)
-                
-                Text(item.body)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .lineLimit(3)
-                    .multilineTextAlignment(.leading)
-                
-                HStack {
-                    Text(item.datePosted)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Text("Read more →")
-                        .font(.caption)
-                        .foregroundColor(.green)
-                }
-            }
-            .padding()
-            .background(Color(.systemGray6))
-            .cornerRadius(16)
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-}
-
+// --- INTERACTIVE ARTICLE READER MATRIX ---
 struct ArticleDetailView: View {
     let article: EditorialItem
     let allArticles: [EditorialItem]
     @Environment(\.dismiss) private var dismiss
     
-    // Grabs items while filtering out the one currently being read
+    // Track localized context stack to trigger push navigation chain smoothly
+    @State private var activeNavigationTarget: EditorialItem? = nil
+    
     var relatedStories: [EditorialItem] {
         allArticles.filter { $0.id != article.id }
     }
@@ -102,7 +68,7 @@ struct ArticleDetailView: View {
                         .font(.body)
                         .lineSpacing(6)
                     
-                    // FIXED: Dynamic Related News Section Hook
+                    // RELATED STORIES CAROUSEL LAYER
                     if !relatedStories.isEmpty {
                         VStack(alignment: .leading, spacing: 14) {
                             Text("Related Stories")
@@ -111,28 +77,31 @@ struct ArticleDetailView: View {
                                 .padding(.top, 24)
                             
                             ForEach(relatedStories.prefix(3)) { item in
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text(item.headline)
-                                        .font(.subheadline)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(.primary)
-                                        .lineLimit(2)
-                                        .multilineTextAlignment(.leading)
-                                    
-                                    Text(item.body)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                        .lineLimit(2)
-                                        .multilineTextAlignment(.leading)
+                                // FIXED: Pressing a related tile now opens it immediately
+                                Button(action: { activeNavigationTarget = item }) {
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        Text(item.headline)
+                                            .font(.subheadline)
+                                            .fontWeight(.semibold)
+                                            .foregroundColor(.primary)
+                                            .lineLimit(2)
+                                            .multilineTextAlignment(.leading)
+                                        
+                                        Text(item.body)
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                            .lineLimit(2)
+                                            .multilineTextAlignment(.leading)
+                                    }
+                                    .padding()
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(Color(.systemGray6))
+                                    .cornerRadius(12)
                                 }
-                                .padding()
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(Color(.systemGray6))
-                                .cornerRadius(12)
+                                .buttonStyle(PlainButtonStyle())
                             }
                         }
                     }
-                    
                     Spacer()
                 }
                 .padding()
@@ -145,6 +114,10 @@ struct ArticleDetailView: View {
                         dismiss()
                     }
                 }
+            }
+            // Continuous detail pushed presentation pipeline context engine
+            .navigationDestination(item: $activeNavigationTarget) { nestedArticle in
+                ArticleDetailView(article: nestedArticle, allArticles: allArticles)
             }
         }
     }
