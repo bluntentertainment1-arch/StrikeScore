@@ -3,7 +3,6 @@ import SwiftUI
 struct EditorialView: View {
     @StateObject private var viewModel = MatchesViewModel()
     @State private var selectedArticle: EditorialItem? = nil
-    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
@@ -50,48 +49,60 @@ struct EditorialView: View {
                 }
                 .padding()
             }
-            .navigationTitle("Editorial Feed")
+            .navigationTitle("Trending News")
             .navigationBarTitleDisplayMode(.inline)
             .task {
                 await viewModel.loadCMSData()
             }
-            // --- BACKWARD COMPATIBLE NAVIGATION WRAPPER ---
-            .modifier(NavigationWrapperModifier(selectedArticle: $selectedArticle))
+            .modifier(NavigationWrapperModifier(selectedArticle: $selectedArticle, allArticles: viewModel.editorialItems))
         }
     }
 }
 
-// MARK: - Backward Compatibility Navigation View Modifier
+// MARK: - Backward Compatible Navigation View Modifier
 struct NavigationWrapperModifier: ViewModifier {
     @Binding var selectedArticle: EditorialItem?
+    let allArticles: [EditorialItem]
     
     func body(content: Content) -> some View {
         if #available(iOS 17.0, *) {
             content
                 .navigationDestination(item: $selectedArticle) { article in
-                    EditorialDetailView(article: article)
+                    EditorialDetailView(article: article, allArticles: allArticles)
                 }
         } else {
             content
                 .sheet(item: $selectedArticle) { article in
                     NavigationStack {
-                        EditorialDetailView(article: article)
+                        EditorialDetailView(article: article, allArticles: allArticles)
                     }
                 }
         }
     }
 }
 
-// MARK: - Editorial Detail View Detail Screen
+// MARK: - Editorial Detail View with Premium Related Stories Layout
 struct EditorialDetailView: View {
     let article: EditorialItem
-    @Environment(\.dismiss) private var dismiss
+    let allArticles: [EditorialItem]
+    
+    // Core selection target to allow recursive detail stacking when tapping related items
+    @State private var subSelectedArticle: EditorialItem? = nil
+    
+    // Safely randomize real articles directly from the fetched array pool
+    private var randomizedRelatedStories: [EditorialItem] {
+        allArticles
+            .filter { $0.id != article.id }
+            .shuffled()
+            .prefix(3)
+            .map { $0 }
+    }
     
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 Text(article.headline)
-                    .font(.title)
+                    .font(.title2)
                     .fontWeight(.bold)
                 
                 Text(article.datePosted)
@@ -100,18 +111,71 @@ struct EditorialDetailView: View {
                 
                 Divider()
                 
-                Text(article.fullContent)
+                Text(article.fullContent.isEmpty ? article.body : article.fullContent)
                     .font(.body)
                     .lineSpacing(6)
+                
+                // --- PREMIUM RELATED STORIES (MATCHES ATTACHED SCREENSHOT) ---
+                if !randomizedRelatedStories.isEmpty {
+                    Divider()
+                        .padding(.vertical, 12)
+                    
+                    Text("Related Stories")
+                        .font(.system(size: 18, weight: .bold))
+                        .padding(.bottom, 4)
+                    
+                    VStack(spacing: 14) {
+                        ForEach(randomizedRelatedStories) { story in
+                            Button(action: { subSelectedArticle = story }) {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text(story.headline)
+                                        .font(.system(size: 15, weight: .bold))
+                                        .foregroundColor(.primary)
+                                        .lineLimit(2)
+                                        .multilineTextAlignment(.leading)
+                                    
+                                    Text(story.body)
+                                        .font(.system(size: 13))
+                                        .foregroundColor(.secondary)
+                                        .lineLimit(2)
+                                        .multilineTextAlignment(.leading)
+                                        .padding(.bottom, 2)
+                                    
+                                    // Row Footer Metadata Line
+                                    HStack {
+                                        Text("Trending News")
+                                            .font(.system(size: 11, weight: .bold))
+                                            .foregroundColor(.green)
+                                        
+                                        Circle()
+                                            .fill(Color.secondary.opacity(0.4))
+                                            .frame(width: 4, height: 4)
+                                        
+                                        Text(story.datePosted)
+                                            .font(.system(size: 11, weight: .medium))
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                .padding()
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color(.secondarySystemGroupedBackground))
+                                .cornerRadius(14)
+                                .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 14)
+                                        .stroke(Color(.systemGray5).opacity(0.6), lineWidth: 1)
+                                )
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                    }
+                }
             }
             .padding()
         }
         .navigationTitle("Article")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button("Done") { dismiss() }
-            }
-        }
+        // Enables deep linking to let users tap a related story and open it instantly
+        .modifier(NavigationWrapperModifier(selectedArticle: $subSelectedArticle, allArticles: allArticles))
     }
 }
