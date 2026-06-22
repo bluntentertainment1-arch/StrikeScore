@@ -1,29 +1,25 @@
 import SwiftUI
 
 struct FavoritesView: View {
-    private var favoritesManager = FavoritesManager.shared
-    @State private var favoriteMatchesList: [FeaturedMatch] = []
+    // Use standard tracking wrapper properties that don't rely on `.favorites` arrays
+    @ObservedObject private var favoritesManager = FavoritesManager.shared
     @State private var selectedMatch: FeaturedMatch? = nil
     
     var body: some View {
         NavigationStack {
             Group {
-                if favoriteMatchesList.isEmpty {
+                // Adjusting to read the core data models tracking configuration directly 
+                if favoritesManager.favoriteMatches.isEmpty {
                     VStack(spacing: 12) {
                         Image(systemName: "star.slash")
                             .font(.system(size: 48))
                             .foregroundColor(.secondary)
                         Text("No Favorites Added Yet")
                             .font(.headline)
-                        Text("Tap the star icon on any fixture card to add them here.")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 40)
                     }
                 } else {
                     List {
-                        ForEach(favoriteMatchesList) { match in
+                        ForEach(favoritesManager.favoriteMatches) { match in
                             MatchCardView(match: match, onTap: {
                                 selectedMatch = match
                             })
@@ -31,7 +27,7 @@ struct FavoritesView: View {
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)
                         }
-                        .onDelete(perform: deleteFavorite)
+                        .onDelete(perform: removeFavoriteMatch)
                     }
                     .listStyle(.plain)
                 }
@@ -40,23 +36,14 @@ struct FavoritesView: View {
             .sheet(item: $selectedMatch) { match in
                 FeaturedMatchDetailView(match: match)
             }
-            .onAppear {
-                syncFavorites()
-            }
         }
     }
     
-    private func syncFavorites() {
-        // Reads from the standard favorites collection matching your manager interface
-        self.favoriteMatchesList = favoritesManager.favorites
-    }
-    
-    private func deleteFavorite(at offsets: IndexSet) {
+    private func removeFavoriteMatch(at offsets: IndexSet) {
         for index in offsets {
-            let match = favoriteMatchesList[index]
-            // Fixed: Passes the item's identifying String signature value to meet API requirements
-            favoritesManager.toggle(match.id)
+            let match = favoritesManager.favoriteMatches[index]
+            // Access custom manipulation routines matching your API signature profiles directly
+            favoritesManager.removeFavorite(match: match)
         }
-        syncFavorites()
     }
 }
