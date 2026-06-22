@@ -4,47 +4,62 @@ struct HomeView: View {
     @StateObject private var viewModel = MatchesViewModel()
     @StateObject private var favoritesManager = FavoritesManager.shared
     
-    // --- CONNECTED SEARCH & DATE SELECTOR STATE VARIABLES ---
     @State private var searchText = ""
     @State private var selectedDate = 0
     @State private var selectedMatch: FeaturedMatch? = nil
+    @State private var selectedArticleFromSearch: EditorialItem? = nil
     
-    // Computes target date for filtering based on selected day offset
+    // Target date matching calculations for standard unfiltered views
     private var targetFilteringDate: Date {
         Calendar.current.date(byAdding: .day, value: selectedDate, to: Date())!
     }
 
-    // --- WORKING FILTER & CHRONOLOGICAL SORT ENGINE ---
+    // --- SWIPE CAROUSEL ENGINE: FINISHED MATCHES ---
+    var finishedMatches: [FeaturedMatch] {
+        viewModel.featuredMatches.filter { $0.status.uppercased() == "FINISHED" }
+    }
+
+    // --- WORKING GLOBAL SEARCH ENGINE (BYPASSES DATES IF QUERY ACTIVE) ---
     var filteredMatches: [FeaturedMatch] {
-        viewModel.featuredMatches.filter { match in
-            // 1. Date Filtering Logic
-            let formatter = ISO8601DateFormatter()
-            guard let matchDateObj = formatter.date(from: match.matchDate) else { return false }
-            let matchIsSameDay = Calendar.current.isDate(matchDateObj, inSameDayAs: targetFilteringDate)
-            
-            // 2. Search Query Logic
-            if searchText.isEmpty {
-                return matchIsSameDay
-            } else {
-                let query = searchText.lowercased()
-                let matchesSearch = match.homeTeam.lowercased().contains(query) ||
-                                    match.awayTeam.lowercased().contains(query) ||
-                                    match.competition.lowercased().contains(query)
-                return matchIsSameDay && matchesSearch
+        if searchText.isEmpty {
+            // Standard Flow: Filter strictly by selected day cell
+            return viewModel.featuredMatches.filter { match in
+                let formatter = ISO8601DateFormatter()
+                guard let matchDateObj = formatter.date(from: match.matchDate) else { return false }
+                return Calendar.current.isDate(matchDateObj, inSameDayAs: targetFilteringDate)
             }
+            .sorted { $0.matchTime < $1.matchTime }
+        } else {
+            // Global Search Flow: Ignore date cells, scan entire array
+            let query = searchText.lowercased()
+            return viewModel.featuredMatches.filter { match in
+                match.homeTeam.lowercased().contains(query) ||
+                match.awayTeam.lowercased().contains(query) ||
+                match.competition.lowercased().contains(query)
+            }
+            .sorted { $0.matchDate < $1.matchDate } // Chronological by date order
         }
-        // 3. Chronological Time Sort (e.g., 14:00 before 20:00)
-        .sorted { $0.matchTime < $1.matchTime }
+    }
+
+    // --- GLOBAL NEWS SEARCH ENGINE ---
+    var filteredNews: [EditorialItem] {
+        guard !searchText.isEmpty else { return [] }
+        let query = searchText.lowercased()
+        return viewModel.editorialItems.filter { item in
+            item.headline.lowercased().contains(query) ||
+            item.body.lowercased().contains(query) ||
+            item.fullContent.lowercased().contains(query)
+        }
     }
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // FIXED: Working Active Search Field Layout
+                // Search Field Layout
                 HStack {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(.secondary)
-                    TextField("Search teams, matches...", text: $searchText)
+                    TextField("Search teams, matches, or news...", text: $searchText)
                         .foregroundColor(.primary)
                         .autocorrectionDisabled()
                     
@@ -62,50 +77,144 @@ struct HomeView: View {
                 .padding(.bottom, 8)
 
                 ScrollView {
-                    VStack(spacing: 12) {
-                        // Date selector
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 10) {
-                                ForEach(0..<7) { day in
-                                    DateCell(day: day, isSelected: day == selectedDate) {
-                                        selectedDate = day
+                    VStack(spacing: 16) {
+                        
+                        // 1. SWIPE FROM RIGHT TO LEFT CAROUSEL (FINISHED MATCHES)
+                        // Placed exactly between search bar and date section
+                        if searchText.isEmpty && !finishedMatches.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Recent Results")
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundColor(.secondary)
+                                    .padding(.horizontal)
+                                
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 12) {
+                                        ForEach(finishedMatches) { match in
+                                            FinishedMatchCarouselCard(match: match) {
+                                                selectedMatch = match
+                                            }
+                                        }
                                     }
+                                    .padding(.horizontal)
                                 }
                             }
-                            .padding(.horizontal)
                         }
 
-                        // Featured matches grid - Dynamic Array Rendering
-                        if viewModel.isLoading {
-                            VStack(spacing: 12) {
-                                ProgressView()
-                                Text("Loading matches...")
-                                    .foregroundColor(.secondary)
-                            }
-                            .padding(.top, 40)
-                        } else if filteredMatches.isEmpty {
-                            VStack(spacing: 12) {
-                                Image(systemName: "sportscourt")
-                                    .font(.largeTitle)
-                                    .foregroundColor(.secondary)
-                                Text("No matches scheduled for this day")
-                                    .foregroundColor(.secondary)
-                            }
-                            .padding(.top, 40)
-                        } else {
-                            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                                ForEach(filteredMatches) { match in
-                                    FeaturedMatchCard(featured: match, isFavorited: favoritesManager.isFavorited(match.id)) {
-                                        selectedMatch = match
-                                    } onFavorite: {
-                                        favoritesManager.toggleFavorite(match.id)
+                        // 2. DATE SELECTOR SYSTEM (Hidden when searching globally)
+                        if searchText.isEmpty {
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 10) {
+                                    ForEach(0..<7) { day in
+                                        DateCell(day: day, isSelected: day == selectedDate) {
+                                            selectedDate = day
+                                        }
                                     }
                                 }
+                                .padding(.horizontal)
                             }
-                            .padding(.horizontal)
+                        }
+
+                        // 3. MAIN DISPLAY ROUTER
+                        if viewModel.isLoading {
+                            ProgressView("Loading sports data...")
+                                .padding(.top, 40)
+                        } else {
+                            // Render Global Search Block if Query string is active
+                            if !searchText.isEmpty {
+                                VStack(alignment: .leading, spacing: 20) {
+                                    
+                                    // Matched Fixtures Block
+                                    Text("Matches (\(filteredMatches.count))")
+                                        .font(.headline)
+                                        .padding(.horizontal)
+                                    
+                                    if filteredMatches.isEmpty {
+                                        Text("No matches found matching \"\(searchText)\"")
+                                            .font(.subheadline)
+                                            .foregroundColor(.secondary)
+                                            .padding(.horizontal)
+                                    } else {
+                                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                                            ForEach(filteredMatches) { match in
+                                                FeaturedMatchCard(featured: match, isFavorited: favoritesManager.isFavorited(match.id)) {
+                                                    selectedMatch = match
+                                                } onFavorite: {
+                                                    favoritesManager.toggleFavorite(match.id)
+                                                }
+                                            }
+                                        }
+                                        .padding(.horizontal)
+                                    }
+                                    
+                                    Divider().padding(.horizontal)
+                                    
+                                    // Matched News Block
+                                    Text("News Articles (\(filteredNews.count))")
+                                        .font(.headline)
+                                        .padding(.horizontal)
+                                    
+                                    if filteredNews.isEmpty {
+                                        Text("No news updates found matching \"\(searchText)\"")
+                                            .font(.subheadline)
+                                            .foregroundColor(.secondary)
+                                            .padding(.horizontal)
+                                    } else {
+                                        ForEach(filteredNews) { article in
+                                            Button(action: { selectedArticleFromSearch = article }) {
+                                                VStack(alignment: .leading, spacing: 6) {
+                                                    Text(article.headline)
+                                                        .font(.subheadline)
+                                                        .fontWeight(.bold)
+                                                        .foregroundColor(.primary)
+                                                        .multilineTextAlignment(.leading)
+                                                    Text(article.body)
+                                                        .font(.caption)
+                                                        .foregroundColor(.secondary)
+                                                        .lineLimit(2)
+                                                        .multilineTextAlignment(.leading)
+                                                }
+                                                .padding()
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                                .background(Color(.systemGray6))
+                                                .cornerRadius(12)
+                                            }
+                                            .buttonStyle(PlainButtonStyle())
+                                            .padding(.horizontal)
+                                        }
+                                    }
+                                }
+                            } else {
+                                // Default Static Dashboard View
+                                if filteredMatches.isEmpty {
+                                    VStack(spacing: 12) {
+                                        Image(systemName: "sportscourt")
+                                            .font(.largeTitle)
+                                            .foregroundColor(.secondary)
+                                        Text("No matches scheduled for this day")
+                                            .foregroundColor(.secondary)
+                                    }
+                                    .padding(.top, 40)
+                                } else {
+                                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                                        ForEach(filteredMatches) { match in
+                                            FeaturedMatchCard(featured: match, isFavorited: favoritesManager.isFavorited(match.id)) {
+                                                selectedMatch = match
+                                            } onFavorite: {
+                                                favoritesManager.toggleFavorite(match.id)
+                                            }
+                                        }
+                                    }
+                                    .padding(.horizontal)
+                                }
+                            }
                         }
                     }
                     .padding(.vertical)
+                }
+                // FIXED: Dismiss keyboard cleanly when user drags or taps outside field area
+                .onTapGesture {
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                 }
             }
             .navigationTitle("StrikeScore")
@@ -116,127 +225,66 @@ struct HomeView: View {
             .sheet(item: $selectedMatch) { match in
                 FeaturedMatchDetailView(match: match)
             }
+            .sheet(item: $selectedArticleFromSearch) { article in
+                ArticleDetailView(article: article, allArticles: viewModel.editorialItems)
+            }
         }
     }
 }
 
-// Clean Sub-Component rendering individual grid module positions
-struct FeaturedMatchCard: View {
-    let featured: FeaturedMatch
-    let isFavorited: Bool
+// --- VISUAL IMPROVEMENT COMPONENT: SWIPEABLE RESULTS CARD ---
+struct FinishedMatchCarouselCard: View {
+    let match: FeaturedMatch
     let onTap: () -> Void
-    let onFavorite: () -> Void
-
+    
     var body: some View {
         Button(action: onTap) {
-            VStack(spacing: 8) {
-                HStack(spacing: 4) {
-                    // Home Flag
-                    AsyncImage(url: featured.homeFlagURL) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image.resizable().scaledToFill()
-                        default:
-                            Circle().fill(Color(.systemGray4))
-                                .overlay(Image(systemName: "sportscourt").font(.system(size: 8)).foregroundColor(.secondary))
+            VStack(spacing: 6) {
+                Text(match.competition)
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+                
+                HStack(spacing: 12) {
+                    Spacer()
+                    VStack(spacing: 4) {
+                        AsyncImage(url: match.homeFlagURL) { p in
+                            p.image?.resizable().scaledToFill() ?? Image(systemName: "sportscourt").resizable()
                         }
+                        .frame(width: 20, height: 20).clipShape(Circle())
+                        Text(match.homeTeam).font(.caption2).fontWeight(.semibold).lineLimit(1)
                     }
-                    .frame(width: 24, height: 24)
-                    .clipShape(Circle())
-
-                    Text(featured.displayScore)
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
-                        .foregroundColor(.primary)
-
-                    // Away Flag
-                    AsyncImage(url: featured.awayFlagURL) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image.resizable().scaledToFill()
-                        default:
-                            Circle().fill(Color(.systemGray4))
-                                .overlay(Image(systemName: "sportscourt").font(.system(size: 8)).foregroundColor(.secondary))
+                    .frame(width: 55)
+                    
+                    Text("\(match.homeScore) - \(match.awayScore)")
+                        .font(.system(size: 16, weight: .black, design: .rounded))
+                        .foregroundColor(.green)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.green.opacity(0.1))
+                        .cornerRadius(6)
+                    
+                    VStack(spacing: 4) {
+                        AsyncImage(url: match.awayFlagURL) { p in
+                            p.image?.resizable().scaledToFill() ?? Image(systemName: "sportscourt").resizable()
                         }
+                        .frame(width: 20, height: 20).clipShape(Circle())
+                        Text(match.awayTeam).font(.caption2).fontWeight(.semibold).lineLimit(1)
                     }
-                    .frame(width: 24, height: 24)
-                    .clipShape(Circle())
+                    .frame(width: 55)
+                    Spacer()
                 }
-
-                VStack(spacing: 2) {
-                    Text("\(featured.homeTeam) vs \(featured.awayTeam)")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.primary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-
-                    Text(featured.competition)
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-
-                    if featured.isLive {
-                        HStack(spacing: 2) {
-                            Circle().fill(Color.red).frame(width: 6, height: 6)
-                            Text("LIVE").font(.system(size: 8, weight: .bold)).foregroundColor(.red)
-                        }
-                    } else {
-                        Text(featured.displayTime)
-                            .font(.system(size: 9, weight: .medium))
-                            .foregroundColor(.secondary)
-                    }
-                }
+                
+                Text("FINAL FT")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundColor(.secondary)
             }
-            .padding(.vertical, 8)
-            .padding(.horizontal, 4)
-            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 8)
+            .frame(width: 175)
             .background(Color(.systemGray6))
             .cornerRadius(12)
-            .overlay(
-                Button(action: onFavorite) {
-                    Image(systemName: isFavorited ? "heart.fill" : "heart")
-                        .font(.system(size: 10))
-                        .foregroundColor(isFavorited ? .red : .white)
-                        .padding(5)
-                        .background(Color.black.opacity(0.4))
-                        .clipShape(Circle())
-                }
-                .buttonStyle(PlainButtonStyle())
-                .padding(4),
-                alignment: .topTrailing
-            )
         }
         .buttonStyle(PlainButtonStyle())
-    }
-}
-
-struct DateCell: View {
-    let day: Int
-    let isSelected: Bool
-    let action: () -> Void
-
-    var dateLabel: (dayName: String, dayNum: String) {
-        let targetDate = Calendar.current.date(byAdding: .day, value: day, to: Date())!
-        let f = DateFormatter()
-        f.dateFormat = "EEE"
-        let name = f.string(from: targetDate).uppercased()
-        f.dateFormat = "d"
-        let num = f.string(from: targetDate)
-        return (name, num)
-    }
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 4) {
-                Text(dateLabel.dayName)
-                    .font(.system(size: 10, weight: .bold))
-                Text(dateLabel.dayNum)
-                    .font(.system(size: 16, weight: .black))
-            }
-            .foregroundColor(isSelected ? .white : .primary)
-            .frame(width: 50, height: 60)
-            .background(isSelected ? Color.green : Color(.systemGray6))
-            .cornerRadius(10)
-        }
     }
 }
