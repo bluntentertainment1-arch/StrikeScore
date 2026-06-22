@@ -37,14 +37,51 @@ struct EditorialView: View {
     }
 }
 
-// --- INTERACTIVE ARTICLE READER MATRIX ---
+// --- ADDED MISSING EDITORIAL CARD STRUCT ---
+struct EditorialCard: View {
+    let item: EditorialItem
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(item.headline)
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                    .multilineTextAlignment(.leading)
+                
+                Text(item.body)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .lineLimit(3)
+                    .multilineTextAlignment(.leading)
+                
+                HStack {
+                    Text(item.datePosted)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text("Read more →")
+                        .font(.caption)
+                        .foregroundColor(.green)
+                }
+            }
+            .padding()
+            .background(Color(.systemGray6))
+            .cornerRadius(16)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
+// --- FIX FOR OS COMPATIBILITY INTERACTIVE READER VIEW ---
 struct ArticleDetailView: View {
     let article: EditorialItem
     let allArticles: [EditorialItem]
-    @Environment(\.dismiss) private var dismiss
+    @Environment(\\.dismiss) private var dismiss
     
-    // Track localized context stack to trigger push navigation chain smoothly
-    @State private var activeNavigationTarget: EditorialItem? = nil
+    // BACKWARD COMPATIBILITY FIX: Swapped out iOS 17 .navigationDestination for a sheet stack presentation model
+    @State private var nestedSelectedArticle: EditorialItem? = nil
     
     var relatedStories: [EditorialItem] {
         allArticles.filter { $0.id != article.id }
@@ -68,7 +105,6 @@ struct ArticleDetailView: View {
                         .font(.body)
                         .lineSpacing(6)
                     
-                    // RELATED STORIES CAROUSEL LAYER
                     if !relatedStories.isEmpty {
                         VStack(alignment: .leading, spacing: 14) {
                             Text("Related Stories")
@@ -77,8 +113,7 @@ struct ArticleDetailView: View {
                                 .padding(.top, 24)
                             
                             ForEach(relatedStories.prefix(3)) { item in
-                                // FIXED: Pressing a related tile now opens it immediately
-                                Button(action: { activeNavigationTarget = item }) {
+                                Button(action: { nestedSelectedArticle = item }) {
                                     VStack(alignment: .leading, spacing: 6) {
                                         Text(item.headline)
                                             .font(.subheadline)
@@ -115,9 +150,9 @@ struct ArticleDetailView: View {
                     }
                 }
             }
-            // Continuous detail pushed presentation pipeline context engine
-            .navigationDestination(item: $activeNavigationTarget) { nestedArticle in
-                ArticleDetailView(article: nestedArticle, allArticles: allArticles)
+            // Backward-compatible presentation chain targeting iOS 14+ layouts
+            .sheet(item: $nestedSelectedArticle) { nestedItem in
+                ArticleDetailView(article: nestedItem, allArticles: allArticles)
             }
         }
     }
