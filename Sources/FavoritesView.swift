@@ -1,64 +1,52 @@
 import SwiftUI
 
 struct FavoritesView: View {
-    @StateObject private var viewModel = MatchesViewModel()
     @StateObject private var favoritesManager = FavoritesManager.shared
     @State private var selectedMatch: FeaturedMatch? = nil
-
+    
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 16) {
-                    if favoriteMatches.isEmpty {
-                        VStack(spacing: 16) {
-                            Image(systemName: "heart")
-                                .font(.system(size: 60))
-                                .foregroundColor(.gray)
-                            Text("No favorites yet")
-                                .foregroundColor(.secondary)
-                            Text("Tap the heart icon on any match to add it here")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal)
-                        }
-                        .padding(.top, 100)
-                    } else {
-                        LazyVGrid(
-                            columns: [
-                                GridItem(.flexible()),
-                                GridItem(.flexible()),
-                                GridItem(.flexible())
-                            ],
-                            spacing: 10
-                        ) {
-                            ForEach(favoriteMatches) { match in
-                                FeaturedMatchCard(
-                                    featured: match,
-                                    isFavorited: true
-                                ) {
-                                    selectedMatch = match
-                                } onFavorite: {
-                                    favoritesManager.toggleFavorite(match.id)
-                                }
-                            }
-                        }
-                        .padding(.horizontal)
+            Group {
+                if favoritesManager.favoriteMatches.isEmpty {
+                    VStack(spacing: 12) {
+                        Image(systemName: "star.slash")
+                            .font(.system(size: 48))
+                            .foregroundColor(.secondary)
+                        Text("No Favorites Added Yet")
+                            .font(.headline)
+                        Text("Tap the star icon on any match or team fixture card to add them here for quick access.")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 40)
                     }
+                } else {
+                    List {
+                        ForEach(favoritesManager.favoriteMatches) { match in
+                            MatchCardView(match: match)
+                                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                                .listRowSeparator(.hidden)
+                                .listRowBackground(Color.clear)
+                                .onTapGesture {
+                                    selectedMatch = match
+                                }
+                        }
+                        .onDelete(perform: deleteFavorite)
+                    }
+                    .listStyle(.plain)
                 }
-                .padding(.vertical)
             }
             .navigationTitle("Favorites")
-            .task {
-                await viewModel.loadCMSData()
-            }
             .sheet(item: $selectedMatch) { match in
                 FeaturedMatchDetailView(match: match)
             }
         }
     }
-
-    private var favoriteMatches: [FeaturedMatch] {
-        viewModel.featuredMatches.filter { favoritesManager.isFavorited($0.id) }
+    
+    private func deleteFavorite(at offsets: IndexSet) {
+        for index in offsets {
+            let match = favoritesManager.favoriteMatches[index]
+            favoritesManager.toggleFavorite(match: match)
+        }
     }
 }
