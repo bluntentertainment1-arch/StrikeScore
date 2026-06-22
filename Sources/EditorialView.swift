@@ -3,33 +3,65 @@ import SwiftUI
 struct EditorialView: View {
     @StateObject private var viewModel = MatchesViewModel()
     @State private var selectedArticle: EditorialItem? = nil
-    
+
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 16) {
-                    if viewModel.editorialItems.isEmpty {
+                VStack(alignment: .leading, spacing: 16) {
+                    if viewModel.isLoading {
+                        ProgressView("Fetching news room...")
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.top, 40)
+                    } else if viewModel.editorialItems.isEmpty {
                         VStack(spacing: 12) {
-                            ProgressView()
-                            Text("Loading news...")
+                            Image(systemName: "newspaper")
+                                .font(.largeTitle)
+                                .foregroundColor(.secondary)
+                            Text("No news stories available right now.")
                                 .foregroundColor(.secondary)
                         }
+                        .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.top, 40)
                     } else {
-                        ForEach(viewModel.editorialItems) { item in
-                            EditorialCard(item: item) {
-                                selectedArticle = item
+                        ForEach(viewModel.editorialItems) { article in
+                            Button(action: { selectedArticle = article }) {
+                                HStack(spacing: 16) {
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        Text(article.headline)
+                                            .font(.headline)
+                                            .foregroundColor(.primary)
+                                            .lineLimit(2)
+                                            .multilineTextAlignment(.leading)
+                                        
+                                        Text(article.body)
+                                            .font(.subheadline)
+                                            .foregroundColor(.secondary)
+                                            .lineLimit(2)
+                                            .multilineTextAlignment(.leading)
+                                        
+                                        Text(article.datePosted)
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                            .padding(.top, 2)
+                                    }
+                                    Spacer()
+                                }
+                                .padding()
+                                .background(Color(.systemGray6))
+                                .cornerRadius(12)
                             }
+                            .buttonStyle(PlainButtonStyle())
                             .padding(.horizontal)
                         }
                     }
                 }
                 .padding(.vertical)
             }
-            .navigationTitle("News")
+            .navigationTitle("News & Updates")
             .task {
                 await viewModel.loadCMSData()
             }
+            // Passes the complete collection to cleanly generate randomized subsets
             .sheet(item: $selectedArticle) { article in
                 ArticleDetailView(article: article, allArticles: viewModel.editorialItems)
             }
@@ -37,54 +69,16 @@ struct EditorialView: View {
     }
 }
 
-// --- ADDED MISSING EDITORIAL CARD STRUCT ---
-struct EditorialCard: View {
-    let item: EditorialItem
-    let onTap: () -> Void
-    
-    var body: some View {
-        Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 12) {
-                Text(item.headline)
-                    .font(.headline)
-                    .foregroundColor(.primary)
-                    .multilineTextAlignment(.leading)
-                
-                Text(item.body)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .lineLimit(3)
-                    .multilineTextAlignment(.leading)
-                
-                HStack {
-                    Text(item.datePosted)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Text("Read more →")
-                        .font(.caption)
-                        .foregroundColor(.green)
-                }
-            }
-            .padding()
-            .background(Color(.systemGray6))
-            .cornerRadius(16)
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-}
-
-// --- FIX FOR OS COMPATIBILITY INTERACTIVE READER VIEW ---
+// --- DETAIL SHEET COMPONENT WITH RANDOMIZED FOOTER SYSTEM ---
 struct ArticleDetailView: View {
     let article: EditorialItem
     let allArticles: [EditorialItem]
     @Environment(\.dismiss) private var dismiss
     
-    // BACKWARD COMPATIBILITY FIX: Swapped out iOS 17 .navigationDestination for a sheet stack presentation model
-    @State private var nestedSelectedArticle: EditorialItem? = nil
-    
-    var relatedStories: [EditorialItem] {
-        allArticles.filter { $0.id != article.id }
+    /// Filters out the current selection, completely shuffles the pool, and grabs 3 articles
+    var randomizedRelatedStories: [EditorialItem] {
+        let secondaryStories = allArticles.filter { $0.id != article.id }
+        return Array(secondaryStories.shuffled().prefix(3))
     }
     
     var body: some View {
@@ -92,10 +86,10 @@ struct ArticleDetailView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     Text(article.headline)
-                        .font(.title)
+                        .font(.title2)
                         .fontWeight(.bold)
                     
-                    Text(article.datePosted)
+                    Text("Published on \(article.datePosted)")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     
@@ -105,54 +99,46 @@ struct ArticleDetailView: View {
                         .font(.body)
                         .lineSpacing(6)
                     
-                    if !relatedStories.isEmpty {
-                        VStack(alignment: .leading, spacing: 14) {
-                            Text("Related Stories")
-                                .font(.title3)
-                                .fontWeight(.bold)
-                                .padding(.top, 24)
-                            
-                            ForEach(relatedStories.prefix(3)) { item in
-                                Button(action: { nestedSelectedArticle = item }) {
-                                    VStack(alignment: .leading, spacing: 6) {
-                                        Text(item.headline)
-                                            .font(.subheadline)
-                                            .fontWeight(.semibold)
-                                            .foregroundColor(.primary)
-                                            .lineLimit(2)
-                                            .multilineTextAlignment(.leading)
-                                        
-                                        Text(item.body)
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                            .lineLimit(2)
-                                            .multilineTextAlignment(.leading)
-                                    }
-                                    .padding()
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(Color(.systemGray6))
-                                    .cornerRadius(12)
+                    Divider().padding(.vertical, 8)
+                    
+                    // --- UNIQUE RANDOMIZED RECENT CORNER ---
+                    if !randomizedRelatedStories.isEmpty {
+                        Text("Related Stories")
+                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .foregroundColor(.primary)
+                            .padding(.bottom, 4)
+                        
+                        VStack(spacing: 12) {
+                            ForEach(randomizedRelatedStories) { story in
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text(story.headline)
+                                        .font(.system(size: 13, weight: .bold))
+                                        .foregroundColor(.primary)
+                                        .lineLimit(1)
+                                    Text(story.body)
+                                        .font(.system(size: 11))
+                                        .foregroundColor(.secondary)
+                                        .lineLimit(2)
+                                        .multilineTextAlignment(.leading)
                                 }
-                                .buttonStyle(PlainButtonStyle())
+                                .padding()
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color(.systemGray6))
+                                .cornerRadius(12)
                             }
                         }
                     }
+                    
                     Spacer()
                 }
                 .padding()
             }
-            .navigationTitle("Article")
+            .navigationTitle("Editorial Feed")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
+                    Button("Done") { dismiss() }
                 }
-            }
-            // Backward-compatible presentation chain targeting iOS 14+ layouts
-            .sheet(item: $nestedSelectedArticle) { nestedItem in
-                ArticleDetailView(article: nestedItem, allArticles: allArticles)
             }
         }
     }
