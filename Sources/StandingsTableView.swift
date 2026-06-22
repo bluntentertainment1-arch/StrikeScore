@@ -1,9 +1,9 @@
 import SwiftUI
 
 struct StandingsTableView: View {
-    @StateObject private var leagueService = LeagueTableService.shared
+    private let leagueService = LeagueTableService.shared
     @State private var tableEntries: [TableTeamEntry] = []
-    @State private var leagueId: String = "4328" // Default Premier League
+    @State private var leagueId: String = "4328"
 
     var body: some View {
         NavigationStack {
