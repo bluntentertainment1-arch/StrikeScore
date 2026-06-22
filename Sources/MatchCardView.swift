@@ -1,21 +1,20 @@
 import SwiftUI
 
 struct MatchCardView: View {
-    let match: FeaturedMatch
+    let match: FeaturedMatch 
     let onTap: () -> Void
     
     @StateObject private var favoritesManager = FavoritesManager.shared
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 8) {
-                
-                // Home Team Area (Clean truncation handling)
+            HStack(spacing: 6) {
+                // Home Team Area
                 HStack(spacing: 6) {
                     Text(match.homeTeam)
                         .font(.system(size: 13, weight: .semibold))
                         .lineLimit(1)
-                        .minimumScaleFactor(0.85)
+                        .minimumScaleFactor(0.8)
                         .multilineTextAlignment(.trailing)
                         .frame(maxWidth: .infinity, alignment: .trailing)
                     
@@ -24,7 +23,7 @@ struct MatchCardView: View {
                         localSpreadsheetURL: match.homeFlagURL,
                         fallbackColor: match.homeFallbackColor,
                         initials: match.getTeamInitials(from: match.homeTeam),
-                        size: 26 // Optimized compact layout size
+                        size: 26
                     )
                 }
                 .frame(maxWidth: .infinity)
@@ -43,11 +42,11 @@ struct MatchCardView: View {
                     
                     if match.isCurrentlyLive {
                         Text(match.status)
-                            .font(.system(size: 9, weight: .bold))
+                            .font(.system(size: 8, weight: .black))
                             .foregroundColor(.red)
                     } else if match.status.uppercased() == "FINISHED" {
                         Text("FT")
-                            .font(.system(size: 9, weight: .bold))
+                            .font(.system(size: 8, weight: .bold))
                             .foregroundColor(.secondary)
                     }
                 }
@@ -60,30 +59,30 @@ struct MatchCardView: View {
                         localSpreadsheetURL: match.awayFlagURL,
                         fallbackColor: match.awayFallbackColor,
                         initials: match.getTeamInitials(from: match.awayTeam),
-                        size: 26 // Optimized compact layout size
+                        size: 26
                     )
                     
                     Text(match.awayTeam)
                         .font(.system(size: 13, weight: .semibold))
                         .lineLimit(1)
-                        .minimumScaleFactor(0.85)
+                        .minimumScaleFactor(0.8)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .frame(maxWidth: .infinity)
                 
-                // Core Favorite Toggle Button Integration
+                // Inline Heart Trigger
                 Button(action: {
                     favoritesManager.toggleFavorite(match.id)
                 }) {
                     Image(systemName: favoritesManager.isFavorited(match.id) ? "heart.fill" : "heart")
                         .font(.system(size: 14))
-                        .foregroundColor(favoritesManager.isFavorited(match.id) ? .red : .gray.opacity(0.7))
-                        .padding(.leading, 2)
+                        .foregroundColor(favoritesManager.isFavorited(match.id) ? .red : .gray.opacity(0.6))
+                        .padding(.leading, 4)
                 }
                 .buttonStyle(PlainButtonStyle())
             }
             .padding(.vertical, 10)
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 10)
             .background(match.status.uppercased() == "FINISHED" ? Color(.systemBackground) : Color(.systemGray6))
             .cornerRadius(12)
             .shadow(color: match.status.uppercased() == "FINISHED" ? Color.black.opacity(0.03) : Color.clear, radius: 4, x: 0, y: 2)
