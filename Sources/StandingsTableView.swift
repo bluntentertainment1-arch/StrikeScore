@@ -32,14 +32,10 @@ struct StandingsTableView: View {
                             .font(.system(size: 14, weight: .semibold, design: .rounded))
                             .frame(width: 30, alignment: .leading)
 
-                        HStack(spacing: 10) {
-                            TeamLogoView(teamName: entry.strTeam)
-                                .frame(width: 24, height: 24)
-                            Text(entry.strTeam)
-                                .font(.system(size: 14, weight: .medium))
-                                .lineLimit(1)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        Text(entry.strTeam)
+                            .font(.system(size: 14, weight: .medium))
+                            .lineLimit(1)
+                            .frame(maxWidth: .infinity, alignment: .leading)
 
                         Text(entry.intPlayed)
                             .font(.system(size: 14))
