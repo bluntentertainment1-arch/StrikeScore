@@ -30,8 +30,7 @@ struct EditorialView: View {
             .task {
                 await viewModel.loadCMSData()
             }
-            // Injects the live network array into the target sheet wrapper
-            .sheet(item: $selectedArticle) { article {
+            .sheet(item: $selectedArticle) { article in
                 ArticleDetailView(initialArticle: article, allArticles: viewModel.editorialItems)
             }
         }
@@ -78,9 +77,7 @@ struct EditorialCard: View {
     }
 }
 
-// --- FIXED DETAIL SHEET COMPONENT WITH ACTIVE ACTIONABLE TRIGGERS ---
 struct ArticleDetailView: View {
-    // Convert current target article into mutable Local State so the screen content can swap out dynamically
     @State private var article: EditorialItem
     let allArticles: [EditorialItem] 
     @Environment(\.dismiss) private var dismiss
@@ -90,7 +87,6 @@ struct ArticleDetailView: View {
         self.allArticles = allArticles
     }
     
-    // Generates non-duplicate related items relative to whichever article is currently being viewed
     var randomizedRelatedStories: [EditorialItem] {
         let subPool = allArticles.filter { $0.id != article.id }
         return Array(subPool.shuffled().prefix(3))
@@ -98,11 +94,10 @@ struct ArticleDetailView: View {
     
     var body: some View {
         NavigationStack {
-            ScrollViewReader { proxy in // Allows us to autoscroll back up when a new story loads
+            ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
                         
-                        // Main Article content identifier anchor
                         VStack(alignment: .leading, spacing: 8) {
                             Text(article.headline)
                                 .font(.title2)
@@ -122,7 +117,6 @@ struct ArticleDetailView: View {
                         
                         Divider().padding(.vertical, 8)
                         
-                        // --- LIVE CLICKABLE RELATED STORIES GRID ---
                         if !randomizedRelatedStories.isEmpty {
                             Text("Related News")
                                 .font(.system(size: 16, weight: .bold, design: .rounded))
@@ -131,12 +125,9 @@ struct ArticleDetailView: View {
                             
                             VStack(spacing: 12) {
                                 ForEach(randomizedRelatedStories) { story in
-                                    // Wrapped individual blocks in a standard active functional button row layout
                                     Button(action: {
                                         withAnimation(.easeInOut(duration: 0.3)) {
-                                            // 1. Swap model context safely
                                             self.article = story
-                                            // 2. Smoothly scroll layout frame focus back up to top headline row
                                             proxy.scrollTo("TopAnchor", anchor: .top)
                                         }
                                     }) {
