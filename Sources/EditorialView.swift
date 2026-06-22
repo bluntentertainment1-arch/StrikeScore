@@ -78,7 +78,7 @@ struct EditorialCard: View {
 struct ArticleDetailView: View {
     let article: EditorialItem
     let allArticles: [EditorialItem]
-    @Environment(\\.dismiss) private var dismiss
+    @Environment(\.dismiss) private var dismiss
     
     // BACKWARD COMPATIBILITY FIX: Swapped out iOS 17 .navigationDestination for a sheet stack presentation model
     @State private var nestedSelectedArticle: EditorialItem? = nil
