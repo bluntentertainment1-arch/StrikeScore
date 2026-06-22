@@ -8,13 +8,14 @@ struct FixturesView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 16) {
+                VStack(spacing: 12) {
                     if upcomingMatches.isEmpty {
                         VStack(spacing: 16) {
                             Image(systemName: "calendar")
-                                .font(.system(size: 60))
+                                .font(.system(size: 50))
                                 .foregroundColor(.gray)
                             Text("No upcoming fixtures")
+                                .font(.subheadline)
                                 .foregroundColor(.secondary)
                         }
                         .padding(.top, 100)
@@ -35,6 +36,7 @@ struct FixturesView: View {
                 .padding(.vertical)
             }
             .navigationTitle("Schedule")
+            .navigationBarTitleDisplayMode(.inline)
             .task {
                 await viewModel.loadCMSData()
             }
@@ -45,7 +47,7 @@ struct FixturesView: View {
     }
 
     private var upcomingMatches: [FeaturedMatch] {
-        viewModel.featuredMatches.filter { !$0.isLive && $0.status != "FINISHED" }
+        viewModel.featuredMatches.filter { !$0.isLive && $0.status.uppercased() != "LIVE" && $0.status.uppercased() != "IN_PLAY" && $0.status.uppercased() != "FINISHED" }
     }
 }
 
@@ -57,70 +59,81 @@ struct FixtureCard: View {
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 16) {
-                VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 12) {
+                // Time & Date Left Column
+                VStack(alignment: .leading, spacing: 3) {
                     Text(match.displayDate)
-                        .font(.caption)
+                        .font(.system(size: 10, weight: .bold))
                         .foregroundColor(.secondary)
+                        .lineLimit(1)
                     Text(match.displayTime)
-                        .font(.headline)
-                        .fontWeight(.bold)
+                        .font(.system(size: 14, weight: .black, design: .rounded))
+                        .foregroundColor(.primary)
                 }
-                .frame(width: 80)
+                .frame(width: 75, alignment: .leading)
 
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        AsyncImage(url: match.homeFlagURL) { image in
-                            image.resizable().scaledToFit()
-                        } placeholder: {
-                            Circle().fill(Color.gray.opacity(0.3))
-                        }
-                        .frame(width: 24, height: 24)
-
+                // Team Rows Stack
+                VStack(alignment: .leading, spacing: 6) {
+                    // Home Row
+                    HStack(spacing: 8) {
+                        TeamLogoView(
+                            teamName: match.homeTeam,
+                            localSpreadsheetURL: match.homeFlagURL,
+                            fallbackColor: match.homeFallbackColor,
+                            initials: match.getTeamInitials(from: match.homeTeam),
+                            size: 22
+                        )
                         Text(match.homeTeam)
-                            .font(.subheadline)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(.primary)
                             .lineLimit(1)
+                            .minimumScaleFactor(0.85)
                     }
 
-                    HStack {
-                        AsyncImage(url: match.awayFlagURL) { image in
-                            image.resizable().scaledToFit()
-                        } placeholder: {
-                            Circle().fill(Color.gray.opacity(0.3))
-                        }
-                        .frame(width: 24, height: 24)
-
+                    // Away Row
+                    HStack(spacing: 8) {
+                        TeamLogoView(
+                            teamName: match.awayTeam,
+                            localSpreadsheetURL: match.awayFlagURL,
+                            fallbackColor: match.awayFallbackColor,
+                            initials: match.getTeamInitials(from: match.awayTeam),
+                            size: 22
+                        )
                         Text(match.awayTeam)
-                            .font(.subheadline)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(.primary)
                             .lineLimit(1)
+                            .minimumScaleFactor(0.85)
                     }
                 }
 
                 Spacer()
 
-                VStack(spacing: 8) {
+                // Metadata Control Tag & Favorites
+                VStack(alignment: .trailing, spacing: 6) {
                     if !match.group.isEmpty {
                         Text(match.group)
-                            .font(.caption2)
-                            .fontWeight(.bold)
+                            .font(.system(size: 9, weight: .bold))
                             .foregroundColor(.white)
-                            .padding(.horizontal, 8)
+                            .padding(.horizontal, 6)
                             .padding(.vertical, 2)
                             .background(Color.orange)
-                            .cornerRadius(10)
+                            .cornerRadius(6)
                     }
 
                     Button(action: onFavorite) {
                         Image(systemName: isFavorited ? "heart.fill" : "heart")
-                            .font(.system(size: 14))
-                            .foregroundColor(isFavorited ? .red : .gray)
+                            .font(.system(size: 15))
+                            .foregroundColor(isFavorited ? .red : .gray.opacity(0.7))
+                            .padding(4)
                     }
                     .buttonStyle(PlainButtonStyle())
                 }
             }
-            .padding()
+            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
             .background(Color(.systemGray6))
-            .cornerRadius(16)
+            .cornerRadius(12)
         }
         .buttonStyle(PlainButtonStyle())
     }
