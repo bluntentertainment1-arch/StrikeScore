@@ -3,65 +3,34 @@ import SwiftUI
 struct EditorialView: View {
     @StateObject private var viewModel = MatchesViewModel()
     @State private var selectedArticle: EditorialItem? = nil
-
+    
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    if viewModel.isLoading {
-                        ProgressView("Fetching news room...")
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .padding(.top, 40)
-                    } else if viewModel.editorialItems.isEmpty {
+                VStack(spacing: 16) {
+                    if viewModel.editorialItems.isEmpty {
                         VStack(spacing: 12) {
-                            Image(systemName: "newspaper")
-                                .font(.largeTitle)
-                                .foregroundColor(.secondary)
-                            Text("No news stories available right now.")
+                            ProgressView()
+                            Text("Loading news...")
                                 .foregroundColor(.secondary)
                         }
-                        .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.top, 40)
                     } else {
-                        ForEach(viewModel.editorialItems) { article in
-                            Button(action: { selectedArticle = article }) {
-                                HStack(spacing: 16) {
-                                    VStack(alignment: .leading, spacing: 6) {
-                                        Text(article.headline)
-                                            .font(.headline)
-                                            .foregroundColor(.primary)
-                                            .lineLimit(2)
-                                            .multilineTextAlignment(.leading)
-                                        
-                                        Text(article.body)
-                                            .font(.subheadline)
-                                            .foregroundColor(.secondary)
-                                            .lineLimit(2)
-                                            .multilineTextAlignment(.leading)
-                                        
-                                        Text(article.datePosted)
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                            .padding(.top, 2)
-                                    }
-                                    Spacer()
-                                }
-                                .padding()
-                                .background(Color(.systemGray6))
-                                .cornerRadius(12)
+                        ForEach(viewModel.editorialItems) { item in
+                            EditorialCard(item: item) {
+                                selectedArticle = item
                             }
-                            .buttonStyle(PlainButtonStyle())
                             .padding(.horizontal)
                         }
                     }
                 }
                 .padding(.vertical)
             }
-            .navigationTitle("News & Updates")
+            .navigationTitle("News")
             .task {
                 await viewModel.loadCMSData()
             }
-            // Passes the complete collection to cleanly generate randomized subsets
+            // Injects the live network array into the target sheet wrapper
             .sheet(item: $selectedArticle) { article in
                 ArticleDetailView(article: article, allArticles: viewModel.editorialItems)
             }
@@ -69,16 +38,55 @@ struct EditorialView: View {
     }
 }
 
-// --- DETAIL SHEET COMPONENT WITH RANDOMIZED FOOTER SYSTEM ---
+struct EditorialCard: View {
+    let item: EditorialItem
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(item.headline)
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                    .multilineTextAlignment(.leading)
+                    .lineLimit(2)
+                
+                Text(item.body)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.leading)
+                    .lineLimit(3)
+                
+                HStack {
+                    Text(item.datePosted)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    Spacer()
+                    
+                    Text("Read more →")
+                        .font(.caption)
+                        .foregroundColor(.green)
+                        .fontWeight(.semibold)
+                }
+            }
+            .padding()
+            .background(Color(.systemGray6))
+            .cornerRadius(16)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
+
 struct ArticleDetailView: View {
     let article: EditorialItem
-    let allArticles: [EditorialItem]
+    let allArticles: [EditorialItem] // Receives the shared collection safely
     @Environment(\.dismiss) private var dismiss
     
-    /// Filters out the current selection, completely shuffles the pool, and grabs 3 articles
+    // Completely randomizes related modules, hiding the one in active view
     var randomizedRelatedStories: [EditorialItem] {
-        let secondaryStories = allArticles.filter { $0.id != article.id }
-        return Array(secondaryStories.shuffled().prefix(3))
+        let subPool = allArticles.filter { $0.id != article.id }
+        return Array(subPool.shuffled().prefix(3))
     }
     
     var body: some View {
@@ -89,7 +97,7 @@ struct ArticleDetailView: View {
                         .font(.title2)
                         .fontWeight(.bold)
                     
-                    Text("Published on \(article.datePosted)")
+                    Text(article.datePosted)
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                     
@@ -101,9 +109,9 @@ struct ArticleDetailView: View {
                     
                     Divider().padding(.vertical, 8)
                     
-                    // --- UNIQUE RANDOMIZED RECENT CORNER ---
+                    // --- SHUFFLED RELATED FEED PANEL ---
                     if !randomizedRelatedStories.isEmpty {
-                        Text("Related Stories")
+                        Text("Related News")
                             .font(.system(size: 16, weight: .bold, design: .rounded))
                             .foregroundColor(.primary)
                             .padding(.bottom, 4)
@@ -115,6 +123,8 @@ struct ArticleDetailView: View {
                                         .font(.system(size: 13, weight: .bold))
                                         .foregroundColor(.primary)
                                         .lineLimit(1)
+                                        .multilineTextAlignment(.leading)
+                                    
                                     Text(story.body)
                                         .font(.system(size: 11))
                                         .foregroundColor(.secondary)
@@ -133,11 +143,13 @@ struct ArticleDetailView: View {
                 }
                 .padding()
             }
-            .navigationTitle("Editorial Feed")
+            .navigationTitle("Article")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") { dismiss() }
+                    Button("Done") {
+                        dismiss()
+                    }
                 }
             }
         }
