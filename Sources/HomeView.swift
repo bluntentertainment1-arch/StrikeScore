@@ -12,8 +12,11 @@ struct HomeView: View {
         Calendar.current.date(byAdding: .day, value: selectedDate, to: Date())!
     }
 
-    var activeLiveMatches: [FeaturedMatch] {
-        viewModel.featuredMatches.filter { $0.isCurrentlyLive }
+    // NEW: Grabs finished match rows extracted from ExcelCMSService
+    var finishedResultsMatches: [FeaturedMatch] {
+        viewModel.featuredMatches.filter { 
+            $0.status.uppercased() == "FINISHED" || $0.status.uppercased() == "FT" 
+        }
     }
 
     var filteredFixturesFeed: [FeaturedMatch] {
@@ -33,141 +36,95 @@ struct HomeView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 16) {
-                    
-                    // 1. Horizontal Date Picker Slider
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 10) {
-                            ForEach(-3...7, id: \.self) { day in
-                                DateBubbleView(day: day, isSelected: selectedDate == day) {
-                                    selectedDate = day
-                                }
+        // NOTE: NavigationStack has been moved up to ContentView to support cleaner global toolbar handling
+        ScrollView {
+            VStack(spacing: 16) {
+                
+                // 1. Horizontal Date Picker Slider
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(-3...7, id: \.self) { day in
+                            DateBubbleView(day: day, isSelected: selectedDate == day) {
+                                selectedDate = day
                             }
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+                
+                // 2. FIXED: Latest Results Carousel (Replacing Live Section)
+                if !finishedResultsMatches.isEmpty && searchText.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "trophy.fill")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(.orange)
+                            Text("LATEST RESULTS")
+                                .font(.system(size: 11, weight: .black))
+                                .foregroundColor(.secondary)
+                                .tracking(0.5)
                         }
                         .padding(.horizontal)
-                    }
-                    
-                    // 2. Optimized Live Slider Horizontal Row
-                    if !activeLiveMatches.isEmpty && searchText.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack(spacing: 6) {
-                                Circle()
-                                    .fill(Color.red)
-                                    .frame(width: 6, height: 6)
-                                Text("LIVE MATCHES")
-                                    .font(.system(size: 11, weight: .black))
-                                    .foregroundColor(.red)
-                                    .tracking(0.5)
+                        
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 10) {
+                                ForEach(finishedResultsMatches) { match in
+                                    Button(action: { selectedMatch = match }) {
+                                        HomeResultsCarouselCard(match: match)
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
+                                }
                             }
                             .padding(.horizontal)
-                            
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 10) {
-                                    ForEach(activeLiveMatches) { match in
-                                        Button(action: { selectedMatch = match }) {
-                                            HomeLiveCarouselCard(match: match)
-                                        }
-                                        .buttonStyle(PlainButtonStyle())
-                                    }
-                                }
-                                .padding(.horizontal)
-                                .padding(.bottom, 2)
-                            }
+                            .padding(.bottom, 2)
                         }
                     }
+                }
+                
+                // 3. Compact Main Fixtures Feed Section
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(searchText.isEmpty ? "Fixtures Feed" : "Search Results")
+                        .font(.system(size: 16, weight: .bold))
+                        .padding(.horizontal)
                     
-                    // 3. Compact Main Fixtures Feed Section
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text(searchText.isEmpty ? "Fixtures Feed" : "Search Results")
-                            .font(.system(size: 16, weight: .bold))
-                            .padding(.horizontal)
-                        
-                        if filteredFixturesFeed.isEmpty {
-                            VStack(spacing: 8) {
-                                Image(systemName: "sportscourt")
-                                    .font(.title3)
-                                    .foregroundColor(.secondary)
-                                Text("No fixtures scheduled for this day")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 30)
-                        } else {
-                            LazyVStack(spacing: 10) {
-                                ForEach(filteredFixturesFeed) { match in
-                                    MatchCardView(match: match, onTap: {
-                                        selectedMatch = match
-                                    })
-                                    .padding(.horizontal)
-                                }
+                    if filteredFixturesFeed.isEmpty {
+                        VStack(spacing: 8) {
+                            Image(systemName: "sportscourt")
+                                .font(.title3)
+                                .foregroundColor(.secondary)
+                            Text("No fixtures scheduled for this day")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 30)
+                    } else {
+                        LazyVStack(spacing: 10) {
+                            ForEach(filteredFixturesFeed) { match in
+                                MatchCardView(match: match, onTap: {
+                                    selectedMatch = match
+                                })
+                                .padding(.horizontal)
                             }
                         }
                     }
                 }
-                .padding(.vertical, 12)
             }
-            .navigationTitle("StrikeScore")
-            .searchable(text: $searchText, prompt: "Search teams...")
-            .sheet(item: $selectedMatch) { match in
-                FeaturedMatchDetailView(match: match)
-            }
-            .task {
-                await viewModel.loadCMSData()
-            }
+            .padding(.vertical, 12)
+        }
+        .navigationTitle("StrikeScore")
+        .searchable(text: $searchText, prompt: "Search teams...")
+        .sheet(item: $selectedMatch) { match in
+            FeaturedMatchDetailView(match: match)
+        }
+        .task {
+            await viewModel.loadCMSData()
         }
     }
 }
 
-struct DateBubbleView: View {
-    let day: Int
-    let isSelected: Bool
-    let action: () -> Void
-
-    var dateLabel: String {
-        let targetDate = Calendar.current.date(byAdding: .day, value: day, to: Date())!
-        let formatter = DateFormatter()
-        formatter.dateFormat = "d"
-        return formatter.string(from: targetDate)
-    }
-
-    var dayName: String {
-        if day == 0 { return "TODAY" }
-        let targetDate = Calendar.current.date(byAdding: .day, value: day, to: Date())!
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEE"
-        return formatter.string(from: targetDate).uppercased()
-    }
-    
-    var monthName: String {
-        let targetDate = Calendar.current.date(byAdding: .day, value: day, to: Date())!
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM"
-        return formatter.string(from: targetDate)
-    }
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 2) {
-                Text(dayName)
-                    .font(.system(size: 8, weight: .bold))
-                Text("\(dateLabel) \(monthName)")
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
-            }
-            .padding(.vertical, 8)
-            .padding(.horizontal, 10)
-            .frame(minWidth: 70)
-            .background(isSelected ? Color.green : Color(.systemGray6))
-            .foregroundColor(isSelected ? .white : .primary)
-            .cornerRadius(10)
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-}
-
-struct HomeLiveCarouselCard: View {
+// NEW: Clean card format displaying final scores neutrally without green live colors
+struct HomeResultsCarouselCard: View {
     let match: FeaturedMatch
     
     var body: some View {
@@ -194,14 +151,14 @@ struct HomeLiveCarouselCard: View {
                 }
                 .frame(width: 75)
                 
-                // Live Score Block
+                // Final Score Center block
                 VStack(spacing: 2) {
                     Text(match.displayScore)
                         .font(.system(size: 16, weight: .black, design: .rounded))
-                        .foregroundColor(.green)
-                    Text(match.status)
+                        .foregroundColor(.primary)
+                    Text("FT")
                         .font(.system(size: 8, weight: .black))
-                        .foregroundColor(.red)
+                        .foregroundColor(.secondary)
                 }
                 .frame(width: 50)
                 
@@ -227,9 +184,5 @@ struct HomeLiveCarouselCard: View {
         .background(Color(.secondarySystemGroupedBackground))
         .cornerRadius(12)
         .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.red.opacity(0.15), lineWidth: 1)
-        )
     }
 }
