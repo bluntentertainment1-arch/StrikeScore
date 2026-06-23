@@ -18,6 +18,10 @@ struct FeaturedMatch: Identifiable, Codable, Hashable {
     let isLive: Bool
     let priority: Int
     let active: Bool
+    // Clean, generic properties mapping to the spreadsheet
+    let link1: String?
+    let link2: String?
+    let link3: String?
 
     var isCurrentlyLive: Bool {
         return isLive || status.uppercased() == "LIVE" || status.uppercased() == "IN_PLAY"
@@ -66,9 +70,14 @@ struct FeaturedMatch: Identifiable, Codable, Hashable {
         return "\(homeScore) - \(awayScore)"
     }
 
-    // --- DYNAMIC FALLBACK SYSTEM FOR MISSING LOGOS ---
-    
-    /// Generates a unique, reproducible color based on the characters of the team's name
+    // Checks if any target link values exist in the row cells
+    var hasAdditionalContent: Bool {
+        let l1 = link1?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let l2 = link2?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let l3 = link3?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return !l1.isEmpty || !l2.isEmpty || !l3.isEmpty
+    }
+
     func generateFallbackColor(for teamName: String) -> Color {
         let colors: [Color] = [.red, .blue, .orange, .purple, .teal, .indigo, .pink, .cyan, .orange, .green]
         let sum = teamName.utf8.reduce(0) { $0 + Int($1) }
@@ -78,7 +87,6 @@ struct FeaturedMatch: Identifiable, Codable, Hashable {
     var homeFallbackColor: Color { generateFallbackColor(for: homeTeam) }
     var awayFallbackColor: Color { generateFallbackColor(for: awayTeam) }
     
-    /// Derives clean, short 2-character initials for fallback text overlays
     func getTeamInitials(from teamName: String) -> String {
         let cleanName = teamName.trimmingCharacters(in: .whitespacesAndNewlines)
         let words = cleanName.components(separatedBy: " ")
