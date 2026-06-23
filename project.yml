@@ -1,4 +1,13 @@
 name: StrikeScore
+options:
+  bundleIdPrefix: com.kidblunt
+  xcodeVersion: '16.2'
+  deploymentTarget: '16.0'
+  usesTabs: false
+  indentWidth: 2
+  tabWidth: 2
+  createIntermediateGroups: true
+
 targets:
   StrikeScore:
     type: application
@@ -8,11 +17,7 @@ targets:
       - path: Sources
         includes:
           - "**/*.swift"
-          - "**/*.plist" # Includes GoogleService-Info.plist in compilation builds automatically
-      - path: Resources
-        includes:
-          - "**/*"
-    resources:
+          - "**/*.plist"
       - path: Resources
         includes:
           - "**/*"
@@ -21,10 +26,8 @@ targets:
         embed: false
       - sdk: UserNotifications.framework
       - sdk: StoreKit.framework
-      # ✅ External Pod framework structures linked to resolve build dependencies
-      - framework: Pods_StrikeScore.framework
-        embed: false
-      - framework: FirebaseCore.framework
+      # ✅ Direct XcodeGen implicit linkage referencing the output of CocoaPods compiler mapping
+      - framework: Pods-StrikeScore.framework
         embed: false
     settings:
       base:
@@ -41,6 +44,11 @@ targets:
         INFOPLIST_KEY_PrivacyManifestPath: Resources/PrivacyInfo.xcprivacy
         SWIFT_VERSION: '5.0'
         TARGETED_DEVICE_FAMILY: '1'
+        # Ensures search paths look inside the generated Pods directory explicitly during build phase transitions
+        FRAMEWORK_SEARCH_PATHS: '$(inherited) $(PROJECT_DIR)/Pods/**'
+        HEADER_SEARCH_PATHS: '$(inherited) $(PROJECT_DIR)/Pods/**'
+        USER_HEADER_SEARCH_PATHS: '$(inherited) $(PROJECT_DIR)/Pods/**'
+
     preBuildScripts:
       - name: Run CocoaPods
         script: |
@@ -49,14 +57,7 @@ targets:
           fi
         shell: /bin/sh
         showEnvVars: true
+
 fileGroups:
   - Sources
   - Resources
-options:
-  bundleIdPrefix: com.kidblunt
-  xcodeVersion: '16.2'
-  deploymentTarget: '16.0'
-  usesTabs: false
-  indentWidth: 2
-  tabWidth: 2
-  createIntermediateGroups: true
