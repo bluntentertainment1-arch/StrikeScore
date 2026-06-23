@@ -1,22 +1,17 @@
 import SwiftUI
-import FirebaseCore
-import GoogleMobileAds
 import UserNotifications
 
 @main
 struct StrikeScoreApp: App {
-    // Shared data engine source of truth across the whole app context
+    // ✅ Safely binds your existing AppDelegate (ATT, AdMob, and Firebase initialization)
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+
+    // Core data source of truth injected into the root layout
     @StateObject private var viewModel = MatchesViewModel()
     @State private var isPreloadingData = true
 
     init() {
-        // 1. Initialize Firebase for Google Analytics traffic tracking
-        FirebaseApp.configure()
-        
-        // 2. Modern Google Mobile Ads initialization (Prevents deprecation warnings)
-        GADMobileAds.sharedInstance().start(completionHandler: nil)
-        
-        // 3. Request push notification permission instantly on launch
+        // ✅ Registers the push notification modal right away when app mounts
         NotificationManager.shared.requestPermission()
     }
 
@@ -24,11 +19,11 @@ struct StrikeScoreApp: App {
         WindowGroup {
             ZStack {
                 if isPreloadingData {
-                    // Custom Splash Screen holds layout while download finishes
+                    // Custom Splash Screen holds layout while data finishes downloading
                     SplashPreloaderView()
                         .transition(.opacity)
                 } else {
-                    // Injecting preloaded view model seamlessly down to views
+                    // Injecting preloaded view model seamlessly down to the application views
                     ContentView()
                         .environmentObject(viewModel)
                         .transition(.opacity)
@@ -36,10 +31,10 @@ struct StrikeScoreApp: App {
             }
             .animation(.easeInOut(duration: 0.4), value: isPreloadingData)
             .task {
-                // 4. Preload the Excel CMS layout right away during splash
+                // Preload the Excel spreadsheet entries right away behind the splash window
                 await viewModel.loadCMSData()
                 
-                // 5. Dismiss preloader seamlessly
+                // Dismiss splash screen seamlessly once loading finishes
                 isPreloadingData = false
             }
         }
