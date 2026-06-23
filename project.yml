@@ -8,7 +8,7 @@ targets:
       - path: Sources
         includes:
           - "**/*.swift"
-          - "**/*.plist" # FIXED: Tells XcodeGen to capture and link your GoogleService-Info.plist automatically
+          - "**/*.plist" # Includes GoogleService-Info.plist in compilation builds automatically
       - path: Resources
         includes:
           - "**/*"
@@ -21,6 +21,11 @@ targets:
         embed: false
       - sdk: UserNotifications.framework
       - sdk: StoreKit.framework
+      # ✅ External Pod framework structures linked to resolve build dependencies
+      - framework: Pods_StrikeScore.framework
+        embed: false
+      - framework: FirebaseCore.framework
+        embed: false
     settings:
       base:
         INFOPLIST_FILE: Sources/Info.plist
