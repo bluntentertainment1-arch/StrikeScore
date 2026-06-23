@@ -195,6 +195,26 @@ struct ContentViewer: View {
 struct CustomWebFrameRepresentable: UIViewRepresentable {
     let urlString: String
     
+    class Coordinator: NSObject, WKUIDelegate, WKNavigationDelegate {
+        var parent: CustomWebFrameRepresentable
+        
+        init(_ parent: CustomWebFrameRepresentable) {
+            self.parent = parent
+        }
+        
+        // Prevents loop crash by forcing new tab target link requests to open right inside the existing webview
+        func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+            if navigationAction.targetFrame == nil {
+                webView.load(navigationAction.request)
+            }
+            return nil
+        }
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.allowsInlineMediaPlayback = true
@@ -202,18 +222,33 @@ struct CustomWebFrameRepresentable: UIViewRepresentable {
         
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.backgroundColor = .black
-        webView.scrollView.isScrollEnabled = false
+        webView.uiDelegate = context.coordinator
+        webView.navigationDelegate = context.coordinator
+        
+        // Enabled scroll so standard video iframe embeds don't scale compress and error out
+        webView.scrollView.isScrollEnabled = true
         return webView
     }
     
     func updateUIView(_ uiView: WKWebView, context: Context) {
-        guard let url = URL(string: urlString.trimmingCharacters(in: .whitespacesAndNewlines)) else { return }
+        var cleanedURLString = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Fallback safety filter: Extract URL if an full html iframe snippet gets put in the spreadsheet row by mistake
+        if cleanedURLString.contains("src=") {
+            let pattern = "src=\"([^\"]+)\""
+            if let regex = try? NSRegularExpression(pattern: pattern, options: []),
+               let match = regex.firstMatch(in: cleanedURLString, options: [], range: NSRange(cleanedURLString.startIndex..., in: cleanedURLString)),
+               let range = Range(match.range(at: 1), in: cleanedURLString) {
+                cleanedURLString = String(cleanedURLString[range])
+            }
+        }
+        
+        guard let url = URL(string: cleanedURLString) else { return }
         let request = URLRequest(url: url)
         uiView.load(request)
     }
 }
 
-// ✅ Correct component definition with 'title' parameter to match callers
 struct InfoDetailRow: View {
     let title: String
     let value: String
