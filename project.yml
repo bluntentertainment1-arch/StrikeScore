@@ -8,6 +8,7 @@ targets:
       - path: Sources
         includes:
           - "**/*.swift"
+          - "**/*.plist" # FIXED: Tells XcodeGen to capture and link your GoogleService-Info.plist automatically
       - path: Resources
         includes:
           - "**/*"
