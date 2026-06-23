@@ -42,20 +42,26 @@ targets:
         SWIFT_VERSION: '5.0'
         TARGETED_DEVICE_FAMILY: '1'
         
-        # ✅ Tells Xcode compiler driver to find Pods headers/framework maps dynamically
-        FRAMEWORK_SEARCH_PATHS: '$(inherited) $(PROJECT_DIR)/Pods/** $(SRCROOT)/Pods/**'
-        HEADER_SEARCH_PATHS: '$(inherited) $(PROJECT_DIR)/Pods/** $(SRCROOT)/Pods/**'
-        USER_HEADER_SEARCH_PATHS: '$(inherited) $(PROJECT_DIR)/Pods/** $(SRCROOT)/Pods/**'
-        OTHER_LDFLAGS: '$(inherited) -framework "FirebaseCore" -framework "GoogleMobileAds" -framework "UserNotifications"'
+        # Let CocoaPods handle all framework/linking configuration via generated xcconfigs
+        FRAMEWORK_SEARCH_PATHS: '$(inherited)'
+        HEADER_SEARCH_PATHS: '$(inherited)'
+        USER_HEADER_SEARCH_PATHS: '$(inherited)'
+        LIBRARY_SEARCH_PATHS: '$(inherited)'
+        OTHER_LDFLAGS: '$(inherited)'
+        OTHER_SWIFT_FLAGS: '$(inherited)'
+        CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES: YES
 
-    preBuildScripts:
-      - name: Run CocoaPods
-        script: |
-          if [ -f "Podfile" ]; then
-            pod install
-          fi
-        shell: /bin/sh
-        showEnvVars: true
+    # Build scripts run INSIDE Xcode builds — this is wrong for CocoaPods
+    # because pod install modifies the project file, which triggers a rebuild loop.
+    # REMOVE this preBuildScript and run pod install in your CI workflow BEFORE xcodegen.
+    # preBuildScripts:
+    #   - name: Run CocoaPods
+    #     script: |
+    #       if [ -f "Podfile" ]; then
+    #         pod install
+    #       fi
+    #     shell: /bin/sh
+    #     showEnvVars: true
 
 fileGroups:
   - Sources
