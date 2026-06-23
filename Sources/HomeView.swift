@@ -186,3 +186,33 @@ struct HomeResultsCarouselCard: View {
         .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
     }
 }
+
+// ✅ Added component implementation to match your layout parameters perfectly
+struct DateBubbleView: View {
+    let day: Int
+    let isSelected: Bool
+    let onTap: () -> Void
+    
+    // Compute the accurate textual date information matching the layout index offset
+    private var calculatedDate: Date {
+        Calendar.current.date(byAdding: .day, value: day, to: Date()) ?? Date()
+    }
+    
+    var body: some View {
+        Button(action: onTap) {
+            VStack(spacing: 4) {
+                Text(calculatedDate.formatted(.dateTime.weekday(.abbreviated)).uppercased())
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundColor(isSelected ? .white : .secondary)
+                
+                Text(calculatedDate.formatted(.dateTime.day()))
+                    .font(.system(size: 14, weight: .black, design: .rounded))
+                    .foregroundColor(isSelected ? .white : .primary)
+            }
+            .frame(width: 44, height: 52)
+            .background(isSelected ? Color.green : Color(.systemGray6))
+            .cornerRadius(10)
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+}
