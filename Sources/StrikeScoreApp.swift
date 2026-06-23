@@ -1,21 +1,22 @@
 import SwiftUI
 import FirebaseCore
 import GoogleMobileAds
+import UserNotifications
 
 @main
 struct StrikeScoreApp: App {
-    // 1. Core data engine source of truth
+    // Shared data engine source of truth across the whole app context
     @StateObject private var viewModel = MatchesViewModel()
     @State private var isPreloadingData = true
 
     init() {
-        // 2. Initialize Firebase SDK for traffic analytics tracking
+        // 1. Initialize Firebase for Google Analytics traffic tracking
         FirebaseApp.configure()
         
-        // 3. Initialize Google Mobile Ads Framework
+        // 2. Modern Google Mobile Ads initialization (Prevents deprecation warnings)
         GADMobileAds.sharedInstance().start(completionHandler: nil)
         
-        // 4. Request Push Notification permissions immediately on open
+        // 3. Request push notification permission instantly on launch
         NotificationManager.shared.requestPermission()
     }
 
@@ -27,7 +28,7 @@ struct StrikeScoreApp: App {
                     SplashPreloaderView()
                         .transition(.opacity)
                 } else {
-                    // Injecting preloaded view model seamlessly down to the views
+                    // Injecting preloaded view model seamlessly down to views
                     ContentView()
                         .environmentObject(viewModel)
                         .transition(.opacity)
@@ -35,10 +36,10 @@ struct StrikeScoreApp: App {
             }
             .animation(.easeInOut(duration: 0.4), value: isPreloadingData)
             .task {
-                // 5. Preload the Excel CMS layout right away during splash
+                // 4. Preload the Excel CMS layout right away during splash
                 await viewModel.loadCMSData()
                 
-                // 6. Dismiss preloader seamlessly
+                // 5. Dismiss preloader seamlessly
                 isPreloadingData = false
             }
         }
