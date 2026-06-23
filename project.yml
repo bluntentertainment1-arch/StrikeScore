@@ -26,9 +26,6 @@ targets:
         embed: false
       - sdk: UserNotifications.framework
       - sdk: StoreKit.framework
-      # ✅ Direct XcodeGen implicit linkage referencing the output of CocoaPods compiler mapping
-      - framework: Pods-StrikeScore.framework
-        embed: false
     settings:
       base:
         INFOPLIST_FILE: Sources/Info.plist
@@ -44,10 +41,12 @@ targets:
         INFOPLIST_KEY_PrivacyManifestPath: Resources/PrivacyInfo.xcprivacy
         SWIFT_VERSION: '5.0'
         TARGETED_DEVICE_FAMILY: '1'
-        # Ensures search paths look inside the generated Pods directory explicitly during build phase transitions
-        FRAMEWORK_SEARCH_PATHS: '$(inherited) $(PROJECT_DIR)/Pods/**'
-        HEADER_SEARCH_PATHS: '$(inherited) $(PROJECT_DIR)/Pods/**'
-        USER_HEADER_SEARCH_PATHS: '$(inherited) $(PROJECT_DIR)/Pods/**'
+        
+        # ✅ Tells Xcode compiler driver to find Pods headers/framework maps dynamically
+        FRAMEWORK_SEARCH_PATHS: '$(inherited) $(PROJECT_DIR)/Pods/** $(SRCROOT)/Pods/**'
+        HEADER_SEARCH_PATHS: '$(inherited) $(PROJECT_DIR)/Pods/** $(SRCROOT)/Pods/**'
+        USER_HEADER_SEARCH_PATHS: '$(inherited) $(PROJECT_DIR)/Pods/** $(SRCROOT)/Pods/**'
+        OTHER_LDFLAGS: '$(inherited) -framework "FirebaseCore" -framework "GoogleMobileAds" -framework "UserNotifications"'
 
     preBuildScripts:
       - name: Run CocoaPods
