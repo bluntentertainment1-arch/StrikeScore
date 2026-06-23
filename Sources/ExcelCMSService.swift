@@ -52,6 +52,7 @@ class ExcelCMSService {
 
             let columns = parseCSVRow(row)
             
+            // Requires at least 16 columns for baseline properties before looking for link data
             guard columns.count >= 16 else { 
                 AppLogger.shared.log("WARNING: Row \(i) has only \(columns.count) columns, skipping. Content: \(row)")
                 continue 
@@ -74,7 +75,11 @@ class ExcelCMSService {
                 status: columns[13],
                 isLive: columns[14].lowercased() == "true",
                 priority: Int(columns[15]) ?? 0,
-                active: columns.count > 16 ? columns[16].lowercased() == "true" : true
+                active: columns.count > 16 ? columns[16].lowercased() == "true" : true,
+                // Safely maps custom spreadsheet data columns past index 16
+                link1: columns.count > 17 ? columns[17] : nil,
+                link2: columns.count > 18 ? columns[18] : nil,
+                link3: columns.count > 19 ? columns[19] : nil
             )
 
             if match.isVisible {
@@ -102,7 +107,7 @@ class ExcelCMSService {
             guard !row.isEmpty else { continue }
 
             let columns = parseCSVRow(row)
-            // Now requires 6 columns: id,headline,body,fullContent,datePosted,active
+            // Requires 6 columns: id,headline,body,fullContent,datePosted,active
             guard columns.count >= 6 else { 
                 AppLogger.shared.log("WARNING: Editorial row \(i) has only \(columns.count) columns, skipping")
                 continue 
