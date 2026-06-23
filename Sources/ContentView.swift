@@ -7,11 +7,23 @@ struct ContentView: View {
     var body: some View {
         ZStack {
             TabView(selection: $selectedTab) {
-                HomeView()
-                    .tabItem {
-                        Label("Home", systemImage: "house")
-                    }
-                    .tag(0)
+                // Wrap HomeView in its own NavigationStack with a toolbar menu item
+                NavigationStack {
+                    HomeView()
+                        .toolbar {
+                            ToolbarItem(placement: .navigationBarLeading) {
+                                Button(action: { showMenu.toggle() }) {
+                                    Image(systemName: "line.3.horizontal")
+                                        .font(.title2)
+                                        .foregroundColor(.primary)
+                                }
+                            }
+                        }
+                }
+                .tabItem {
+                    Label("Home", systemImage: "house")
+                }
+                .tag(0)
                 
                 LiveMatchesView()
                     .tabItem {
@@ -25,7 +37,6 @@ struct ContentView: View {
                     }
                     .tag(2)
                 
-                // FIXED: Blazing Explore Tab Menu Setup
                 EditorialView()
                     .tabItem {
                         VStack {
@@ -44,25 +55,11 @@ struct ContentView: View {
             }
             .tint(.green)
             
-            // Side menu overlay
+            // Side menu overlay panel remains layout-safe
             if showMenu {
                 SideMenuView(isShowing: $showMenu)
+                    .zIndex(1)
             }
         }
-        .overlay(
-            // Hamburger button
-            VStack {
-                HStack {
-                    Button(action: { showMenu.toggle() }) {
-                        Image(systemName: "line.3.horizontal")
-                            .font(.title2)
-                            .foregroundColor(.primary)
-                            .padding()
-                    }
-                    Spacer()
-                }
-                Spacer()
-            }
-        )
     }
 }
