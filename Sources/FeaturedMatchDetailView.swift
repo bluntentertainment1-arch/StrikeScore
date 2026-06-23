@@ -212,3 +212,22 @@ struct CustomWebFrameRepresentable: UIViewRepresentable {
         uiView.load(request)
     }
 }
+
+// ✅ Correct component definition with 'title' parameter to match callers
+struct InfoDetailRow: View {
+    let title: String
+    let value: String
+    
+    var body: some View {
+        HStack {
+            Text(title)
+                .foregroundColor(.secondary)
+                .font(.system(size: 13))
+            Spacer()
+            Text(value)
+                .fontWeight(.semibold)
+                .font(.system(size: 13))
+        }
+        .padding(.vertical, 2)
+    }
+}
