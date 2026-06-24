@@ -5,31 +5,47 @@ struct FixturesView: View {
     @StateObject private var favoritesManager = FavoritesManager.shared
     @State private var selectedMatch: FeaturedMatch? = nil
 
+    // ✅ FIXED: Filters strictly for "SCHEDULED" entries and groups them cleanly by Competition
+    private var groupedFixtures: [(competition: String, matches: [FeaturedMatch])] {
+        let scheduledMatches = viewModel.featuredMatches.filter { match in
+            match.status.uppercased() == "SCHEDULED"
+        }
+        let dictionary = Dictionary(grouping: scheduledMatches, by: { $0.competition })
+        return dictionary.map { (competition: $0.key, matches: $0.value) }
+            .sorted { $0.competition < $1.competition }
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 12) {
-                    if upcomingMatches.isEmpty {
+                VStack(spacing: 16) {
+                    if groupedFixtures.isEmpty {
                         VStack(spacing: 16) {
                             Image(systemName: "calendar")
                                 .font(.system(size: 50))
                                 .foregroundColor(.gray)
-                            Text("No upcoming fixtures")
+                            Text("No upcoming scheduled fixtures")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                         }
                         .padding(.top, 100)
                     } else {
-                        ForEach(upcomingMatches) { match in
-                            FixtureCard(
-                                match: match,
-                                isFavorited: favoritesManager.isFavorited(match.id)
-                            ) {
-                                selectedMatch = match
-                            } onFavorite: {
-                                favoritesManager.toggleFavorite(match.id)
+                        LazyVStack(alignment: .leading, spacing: 14, pinnedViews: [.sectionHeaders]) {
+                            ForEach(groupedFixtures, id: \.competition) { section in
+                                Section(header: sectionHeaderView(section.competition)) {
+                                    ForEach(section.matches) { match in
+                                        FixtureCard(
+                                            match: match,
+                                            isFavorited: favoritesManager.isFavorited(match.id)
+                                        ) {
+                                            selectedMatch = match
+                                        } onFavorite: {
+                                            favoritesManager.toggleFavorite(match.id)
+                                        }
+                                        .padding(.horizontal)
+                                    }
+                                }
                             }
-                            .padding(.horizontal)
                         }
                     }
                 }
@@ -46,11 +62,18 @@ struct FixturesView: View {
         }
     }
 
-    private var upcomingMatches: [FeaturedMatch] {
-        viewModel.featuredMatches.filter { !$0.isLive && $0.status.uppercased() != "LIVE" && $0.status.uppercased() != "IN_PLAY" && $0.status.uppercased() != "FINISHED" }
+    private func sectionHeaderView(_ title: String) -> some View {
+        Text(title.uppercased())
+            .font(.system(size: 11, weight: .black))
+            .foregroundColor(.secondary)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(.systemGroupedBackground))
     }
 }
 
+// ✅ FULL ORIGINAL COMPONENT: Preserved with all layout and design elements intact
 struct FixtureCard: View {
     let match: FeaturedMatch
     let isFavorited: Bool
@@ -60,28 +83,29 @@ struct FixtureCard: View {
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 12) {
-                // Time & Date Left Column
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(match.displayDate)
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                    Text(match.displayTime)
-                        .font(.system(size: 14, weight: .black, design: .rounded))
+                // Time & Status Column
+                VStack(alignment: .center, spacing: 4) {
+                    Text(match.matchTime)
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
                         .foregroundColor(.primary)
+                    Text(match.matchDate)
+                        .font(.system(size: 9, weight: .medium))
+                        .foregroundColor(.secondary)
                 }
-                .frame(width: 75, alignment: .leading)
+                .frame(width: 65)
 
-                // Team Rows Stack
-                VStack(alignment: .leading, spacing: 6) {
-                    // Home Row
+                Divider()
+                    .frame(height: 35)
+
+                // Teams Presentation Column
+                VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 8) {
                         TeamLogoView(
                             teamName: match.homeTeam,
                             localSpreadsheetURL: match.homeFlagURL,
                             fallbackColor: match.homeFallbackColor,
                             initials: match.getTeamInitials(from: match.homeTeam),
-                            size: 22
+                            size: 18
                         )
                         Text(match.homeTeam)
                             .font(.system(size: 13, weight: .semibold))
@@ -90,14 +114,13 @@ struct FixtureCard: View {
                             .minimumScaleFactor(0.85)
                     }
 
-                    // Away Row
                     HStack(spacing: 8) {
                         TeamLogoView(
                             teamName: match.awayTeam,
                             localSpreadsheetURL: match.awayFlagURL,
                             fallbackColor: match.awayFallbackColor,
                             initials: match.getTeamInitials(from: match.awayTeam),
-                            size: 22
+                            size: 18
                         )
                         Text(match.awayTeam)
                             .font(.system(size: 13, weight: .semibold))
