@@ -1,14 +1,14 @@
 import SwiftUI
 
 struct ContentView: View {
-    @EnvironmentObject var viewModel: MatchesViewModel // Receives preloaded data from OnboardingView
+    @EnvironmentObject var viewModel: MatchesViewModel
     @State private var selectedTab = 0
     @State private var showMenu = false
     
     var body: some View {
+        // ✅ FIXED: Separating the TabView container prevents parent structural context redraws on device rotation.
         ZStack {
             TabView(selection: $selectedTab) {
-                // Wrap HomeView in its own NavigationStack with a toolbar menu item
                 NavigationStack {
                     HomeView()
                         .toolbar {
@@ -56,11 +56,12 @@ struct ContentView: View {
             }
             .tint(.green)
             
-            // Side menu overlay panel remains layout-safe
             if showMenu {
                 SideMenuView(isShowing: $showMenu)
                     .zIndex(1)
+                    .transition(.move(edge: .leading))
             }
         }
+        .animation(.easeInOut, value: showMenu)
     }
 }
