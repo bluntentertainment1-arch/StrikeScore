@@ -142,24 +142,22 @@ struct StrikeScoreApp: App {
                     // Initialize Mobile Ads SDK (Handles ad profile filtering implicitly based on step 1)
                     MobileAds.shared.start(completionHandler: nil)
                     
-                    // 3. Chain custom Push Notification prompt immediately after
-                    NotificationManager.shared.requestPermission { granted in
-                        AppLogger.shared.log("Push notifications response registered: \(granted)")
-                        
-                        // 4. ALWAYS advance to data preloading block regardless of permissions declined
-                        withAnimation(.easeInOut(duration: 0.4)) {
-                            currentPhase = .excelPreloading
-                        }
+                    // 3. Chain custom Push Notification prompt immediately after (Extra closure removed ✅)
+                    NotificationManager.shared.requestPermission()
+                    
+                    // 4. ALWAYS advance to data preloading block regardless of permissions declined
+                    withAnimation(.easeInOut(duration: 0.4)) {
+                        currentPhase = .excelPreloading
                     }
                 }
             }
         } else {
-            // Legacy iOS devices fallback structure
+            // Legacy iOS devices fallback structure (Extra closure removed ✅)
             MobileAds.shared.start(completionHandler: nil)
-            NotificationManager.shared.requestPermission { _ in
-                withAnimation(.easeInOut(duration: 0.4)) {
-                    currentPhase = .excelPreloading
-                }
+            NotificationManager.shared.requestPermission()
+            
+            withAnimation(.easeInOut(duration: 0.4)) {
+                currentPhase = .excelPreloading
             }
         }
     }
