@@ -1,32 +1,17 @@
 import SwiftUI
 
 struct ContentView: View {
-    @EnvironmentObject var viewModel: MatchesViewModel
     @State private var selectedTab = 0
     @State private var showMenu = false
-    
-    // ✅ GDPR INTEGRATION: Checks verification criteria cleanly on initialization
-    @State private var needsPrivacyConsent = !GDPRConsentManager.shared.hasConsent
     
     var body: some View {
         ZStack {
             TabView(selection: $selectedTab) {
-                NavigationStack {
-                    HomeView()
-                        .toolbar {
-                            ToolbarItem(placement: .navigationBarLeading) {
-                                Button(action: { showMenu.toggle() }) {
-                                    Image(systemName: "line.3.horizontal")
-                                        .font(.title2)
-                                        .foregroundColor(.primary)
-                                }
-                            }
-                        }
-                }
-                .tabItem {
-                    Label("Home", systemImage: "house")
-                }
-                .tag(0)
+                HomeView()
+                    .tabItem {
+                        Label("Home", systemImage: "house")
+                    }
+                    .tag(0)
                 
                 LiveMatchesView()
                     .tabItem {
@@ -40,6 +25,7 @@ struct ContentView: View {
                     }
                     .tag(2)
                 
+                // Keep your blazing Explore Tab Menu Setup completely intact
                 EditorialView()
                     .tabItem {
                         VStack {
@@ -58,16 +44,25 @@ struct ContentView: View {
             }
             .tint(.green)
             
+            // Side menu overlay
             if showMenu {
                 SideMenuView(isShowing: $showMenu)
-                    .zIndex(1)
-                    .transition(.move(edge: .leading))
             }
         }
-        .animation(.easeInOut, value: showMenu)
-        // ✅ GDPR SCREEN OVERLAY LOCK
-        .fullScreenCover(isPresented: $needsPrivacyConsent) {
-            GDPRConsentView(isPresented: $needsPrivacyConsent)
-        }
+        .overlay(
+            // Hamburger button configuration
+            VStack {
+                HStack {
+                    Button(action: { showMenu.toggle() }) {
+                        Image(systemName: "line.3.horizontal")
+                            .font(.title2)
+                            .foregroundColor(.primary)
+                            .padding()
+                    }
+                    Spacer()
+                }
+                Spacer()
+            }
+        )
     }
 }
