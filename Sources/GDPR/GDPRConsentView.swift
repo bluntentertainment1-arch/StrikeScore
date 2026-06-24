@@ -5,10 +5,10 @@ struct GDPRConsentView: View {
     @State private var adsConsent = false
     @Environment(\.dismiss) private var dismiss
     
-    // Made optional to support generic push navigation link initializations cleanly
+    // ✅ INTEGRATED UPDATE: Added explicit binding wrapper to cleanly support structural push routes
     var isPresented: Binding<Bool>?
 
-    // Clean convenience initializer to support NavigationLink(destination: GDPRConsentView())
+    // Convenience initializer to support standard instantiation syntax
     init(isPresented: Binding<Bool>? = nil) {
         self.isPresented = isPresented
     }
