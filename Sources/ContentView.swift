@@ -5,6 +5,9 @@ struct ContentView: View {
     @State private var selectedTab = 0
     @State private var showMenu = false
     
+    // ✅ GDPR INTEGRATION: Monitors your GDPR storage states automatically on initialization
+    @State private var needsPrivacyConsent = !GDPRConsentManager.shared.hasConsent
+    
     var body: some View {
         // ✅ FIXED: Separating the TabView container prevents parent structural context redraws on device rotation.
         ZStack {
@@ -63,5 +66,9 @@ struct ContentView: View {
             }
         }
         .animation(.easeInOut, value: showMenu)
+        // ✅ CRITICAL REJECTION PROTECTION: Locks interface upon launching mainDashboard phase if selection is missing
+        .fullScreenCover(isPresented: $needsPrivacyConsent) {
+            GDPRConsentView(isPresented: $needsPrivacyConsent)
+        }
     }
 }
