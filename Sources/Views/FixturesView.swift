@@ -1,9 +1,9 @@
 import SwiftUI
 
 struct FixturesView: View {
-    @EnvironmentObject var viewModel: MatchesViewModel
+    // ✅ FIX: Access the clean non-wrapped object data matrix directly
+    @EnvironmentObject private var viewModel: MatchesViewModel
     
-    // Master timeline parsing configurations: Only show present and future matches
     private var filteredMatches: [Match] {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
@@ -12,11 +12,11 @@ struct FixturesView: View {
         let todayString = formatter.string(from: Date())
         guard let benchmarkDate = formatter.date(from: todayString) else { return [] }
         
+        // ✅ FIX: Properties updated from matchDate to date to accurately read Match.swift
         return viewModel.allMatches.filter { match in
-            guard let matchDate = formatter.date(from: match.matchDate) else { return false }
-            // Keep matching records if they represent the present or future calendar days
+            guard let matchDate = formatter.date(from: match.date) else { return false }
             return matchDate >= benchmarkDate
-        }.sorted { $0.matchDate < $1.matchDate }
+        }.sorted { $0.date < $1.date }
     }
     
     var body: some View {
@@ -44,14 +44,12 @@ struct FixturesView: View {
             }
             .navigationTitle("Schedule")
             .onAppear {
-                // Ensure daily matching records queue local notification metrics
                 NotificationManager.shared.scheduleDailyReminders(for: viewModel.allMatches)
             }
         }
     }
 }
 
-// Redesigned Card element with layout-integrated countdown functionality
 struct ScheduledMatchCardRow: View {
     let match: Match
     @StateObject private var favoritesManager = FavoritesManager.shared
@@ -61,10 +59,10 @@ struct ScheduledMatchCardRow: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Main Metadata Block Info
             VStack(spacing: 12) {
                 HStack {
-                    Text("\(match.matchDate)")
+                    // ✅ FIX: Fixed reference string from matchDate to date
+                    Text("\(match.date)")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundColor(.secondary)
                     Spacer()
@@ -98,7 +96,8 @@ struct ScheduledMatchCardRow: View {
                     Spacer()
                     
                     VStack(alignment: .trailing, spacing: 4) {
-                        Text(match.matchTime)
+                        // ✅ FIX: Fixed reference string from matchTime to time
+                        Text(match.time)
                             .font(.system(size: 16, weight: .black, design: .rounded))
                         Text("GMT")
                             .font(.system(size: 10, weight: .bold))
@@ -117,7 +116,6 @@ struct ScheduledMatchCardRow: View {
             }
             .padding()
             
-            // Redesigned Countdown Sub-Tray Panel
             if !timeRemainingString.isEmpty {
                 HStack {
                     Image(systemName: "clock.badge.checkmark.fill")
@@ -143,7 +141,8 @@ struct ScheduledMatchCardRow: View {
         formatter.dateFormat = "yyyy-MM-dd HH:mm"
         formatter.timeZone = TimeZone(abbreviation: "GMT")
         
-        guard let targetDate = formatter.date(from: "\(match.matchDate) \(match.matchTime)") else {
+        // ✅ FIX: Mixed fields changed to access native match.date and match.time properties cleanly
+        guard let targetDate = formatter.date(from: "\(match.date) \(match.time)") else {
             timeRemainingString = ""
             return
         }
