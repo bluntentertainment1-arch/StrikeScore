@@ -1,81 +1,72 @@
 import SwiftUI
 
 struct GDPRConsentView: View {
-    @State private var analyticsConsent = true
-    @State private var adsConsent = true
-    @Binding var isPresented: Bool // Controls visibility binding at root launch level
+    @State private var analyticsConsent = false
+    @State private var adsConsent = false
+    @Environment(\.dismiss) private var dismiss
+    
+    // Made optional to support generic push navigation link initializations cleanly
+    var isPresented: Binding<Bool>?
+
+    // Clean convenience initializer to support NavigationLink(destination: GDPRConsentView())
+    init(isPresented: Binding<Bool>? = nil) {
+        self.isPresented = isPresented
+    }
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 24) {
-                Spacer()
-                
                 Image(systemName: "shield.checkerboard")
-                    .font(.system(size: 75))
+                    .font(.system(size: 60))
                     .foregroundColor(.green)
 
                 Text("Privacy Settings")
-                    .font(.system(size: 26, weight: .bold, design: .rounded))
+                    .font(.title)
+                    .fontWeight(.bold)
 
-                Text("We value your privacy. Please customize your options below to help us support the project while matching store compliance rules.")
+                Text("We value your privacy. Please choose your preferences below.")
                     .multilineTextAlignment(.center)
-                    .font(.subheadline)
                     .foregroundColor(.secondary)
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal)
 
-                VStack(alignment: .leading, spacing: 16) {
-                    Toggle(isOn: $analyticsConsent) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Anonymous Analytics")
-                                .font(.headline)
-                            Text("Help us optimize feature loads by sharing crash reports and anonymous performance data.")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    .tint(.green)
+                VStack(alignment: .leading, spacing: 16) {\n                    Toggle("Analytics", isOn: $analyticsConsent)
+                    Text("Help us improve the app by sharing anonymous usage data.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
 
                     Divider()
 
-                    Toggle(isOn: $adsConsent) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Personalized Match Ads")
-                                .font(.headline)
-                            Text("Receive ad experiences customized to your favorite teams or regional location trends.")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    .tint(.green)
+                    Toggle("Personalized Ads", isOn: $adsConsent)
+                    Text("Receive ads tailored to your interests.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
                 .padding()
                 .background(Color(.systemGray6))
-                .cornerRadius(16)
+                .cornerRadius(12)
                 .padding(.horizontal)
 
                 Spacer()
 
-                Button(action: {
-                    // Commit settings to compliance storage
-                    GDPRConsentManager.shared.saveUserPreferences(
-                        allowAnalytics: analyticsConsent, 
-                        allowPersonalizedAds: adsConsent
-                    )
-                    // Instantly hide the overlay view structure
-                    isPresented = false
-                }) {
-                    Text("Accept & Continue")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.green)
-                        .cornerRadius(14)
+                Button("Save Preferences") {
+                    GDPRConsentManager.shared.giveConsent()
+                    if let isPresented = isPresented {
+                        isPresented.wrappedValue = false
+                    } else {
+                        dismiss()
+                    }
                 }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 16)
+                .font(.headline)
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.green)
+                .cornerRadius(12)
+                .padding(.horizontal)
             }
-            .navigationBarBackButtonHidden(true)
+            .padding(.vertical)
+            .navigationTitle("Privacy")
+            .navigationBarTitleDisplayMode(.inline)
         }
     }
 }
