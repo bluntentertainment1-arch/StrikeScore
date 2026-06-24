@@ -19,7 +19,6 @@ struct StrikeScoreApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @Environment(\.scenePhase) private var scenePhase
     
-    // Instantiating the shared viewmodel instance at runtime
     @StateObject private var viewModel = MatchesViewModel()
     @State private var currentPhase: AppFlowState.ViewPhase = .initialSplash
     
@@ -30,7 +29,6 @@ struct StrikeScoreApp: App {
             ZStack {
                 switch currentPhase {
                 case .initialSplash:
-                    // Fallback block if an explicit custom view splash isn't available
                     Color(.systemBackground)
                         .ignoresSafeArea()
                         .onAppear {
@@ -48,7 +46,6 @@ struct StrikeScoreApp: App {
                         }
                         
                 case .onboardingFlow:
-                    // Simple programmatic replacement wrapper fallback to ensure compile safety
                     ZStack {
                         Color.green.ignoresSafeArea()
                         VStack(spacing: 20) {
@@ -100,7 +97,6 @@ struct StrikeScoreApp: App {
                     DataLoadingProgressView()
                         .transition(.opacity)
                         .task {
-                            // Seamless preloading function run right here
                             await viewModel.loadCMSData()
                             withAnimation(.easeInOut(duration: 0.4)) {
                                 currentPhase = .mainDashboard
@@ -128,7 +124,6 @@ struct StrikeScoreApp: App {
             ATTrackingManager.requestTrackingAuthorization { status in
                 DispatchQueue.main.async {
                     MobileAds.shared.start(completionHandler: nil)
-                    // Call without trailing closure block to comply with your source module interface
                     NotificationManager.shared.requestPermission()
                     
                     withAnimation(.easeInOut(duration: 0.4)) {
@@ -141,6 +136,26 @@ struct StrikeScoreApp: App {
             NotificationManager.shared.requestPermission()
             withAnimation(.easeInOut(duration: 0.4)) {
                 currentPhase = .excelPreloading
+            }
+        }
+    }
+}
+
+// ✅ FIXED: Explicit declaration placement inside file scope context
+struct DataLoadingProgressView: View {
+    var body: some View {
+        ZStack {
+            Color(.systemBackground)
+                .ignoresSafeArea()
+            
+            VStack(spacing: 16) {
+                ProgressView()
+                    .tint(.green)
+                    .scaleEffect(1.3)
+                
+                Text("Updating Match Schedules...")
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .foregroundColor(.secondary)
             }
         }
     }
