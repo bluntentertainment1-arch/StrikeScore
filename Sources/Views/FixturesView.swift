@@ -1,163 +1,128 @@
 import SwiftUI
 
 struct FixturesView: View {
-    // Access the object model directly to prevent proxy binding resolution errors
-    @EnvironmentObject var viewModel: MatchesViewModel
-    
-    private var filteredMatches: [Match] {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        formatter.timeZone = TimeZone(abbreviation: "GMT")
-        
-        let todayString = formatter.string(from: Date())
-        guard let benchmarkDate = formatter.date(from: todayString) else { return [] }
-        
-        // Explicitly reading matchDate property names
-        return viewModel.allMatches.filter { match in
-            guard let matchDate = formatter.date(from: match.matchDate) else { return false }
-            return matchDate >= benchmarkDate
-        }.sorted { $0.matchDate < $1.matchDate }
-    }
-    
+    // Uses the standard shared view-model pattern tracking the main API data array
+    @ObservedObject var viewModel = MatchesViewModel()
+    @StateObject private var favoritesManager = FavoritesManager.shared
+    @State private var selectedMatch: Match? = nil
+
     var body: some View {
         NavigationStack {
-            Group {
-                if filteredMatches.isEmpty {
-                    VStack(spacing: 12) {
-                        Image(systemName: "calendar.badge.exclamationmark")
-                            .font(.system(size: 48))
-                            .foregroundColor(.secondary)
-                        Text("No Upcoming Matches Scheduled")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(.secondary)
-                    }
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: 14) {
-                            ForEach(filteredMatches) { match in
-                                ScheduledMatchCardRow(match: match)
-                            }
+            ScrollView {
+                VStack(spacing: 12) {
+                    if upcomingMatches.isEmpty {
+                        VStack(spacing: 16) {
+                            Image(systemName: "calendar")
+                                .font(.system(size: 50))
+                                .foregroundColor(.gray)
+                            Text("No upcoming fixtures")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
                         }
-                        .padding()
+                        .padding(.top, 100)
+                    } else {
+                        ForEach(upcomingMatches) { match in
+                            FixtureCard(
+                                match: match,
+                                isFavorited: favoritesManager.isFavorited(match.id)
+                            ) {
+                                selectedMatch = match
+                            } onFavorite: {
+                                favoritesManager.toggleFavorite(match.id)
+                            }
+                            .padding(.horizontal)
+                        }
                     }
                 }
+                .padding(.vertical)
             }
             .navigationTitle("Schedule")
-            .onAppear {
-                NotificationManager.shared.scheduleDailyReminders(for: viewModel.allMatches)
+            .navigationBarTitleDisplayMode(.inline)
+            .sheet(item: $selectedMatch) { match in
+                // Updated component context to accept the updated API Match type structure
+                FeaturedMatchDetailView(match: match)
             }
         }
+    }
+
+    private var upcomingMatches: [Match] {
+        // Safely screens out completed or active fixtures from the target match list
+        viewModel.allMatches.filter { !$0.isLive && !$0.isFinished && $0.status.uppercased() != "IN_PLAY" }
     }
 }
 
-struct ScheduledMatchCardRow: View {
+struct FixtureCard: View {
     let match: Match
-    @StateObject private var favoritesManager = FavoritesManager.shared
-    @State private var timeRemainingString: String = ""
-    
-    private let timer = Timer.publish(every: 1.0, on: .main, in: .common).autoconnect()
-    
+    let isFavorited: Bool
+    let onTap: () -> Void
+    let onFavorite: () -> Void
+
     var body: some View {
-        VStack(spacing: 0) {
-            VStack(spacing: 12) {
-                HStack {
-                    Text("\(match.matchDate)")
-                        .font(.system(size: 12, weight: .bold))
+        Button(action: onTap) {
+            HStack(spacing: 12) {
+                // Time & Date Column (Reads cleanly from Match computed helpers)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(match.displayDate)
+                        .font(.system(size: 10, weight: .bold))
                         .foregroundColor(.secondary)
-                    Spacer()
-                    if !match.group.isEmpty {
-                        Text(match.group.uppercased())
-                            .font(.system(size: 10, weight: .black))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(Color.orange.opacity(0.15))
-                            .foregroundColor(.orange)
+                        .lineLimit(1)
+                    Text(match.displayTime)
+                        .font(.system(size: 14, weight: .black, design: .rounded))
+                        .foregroundColor(.primary)
+                }
+                .frame(width: 75, alignment: .leading)
+
+                // Teams Stack Layout
+                VStack(alignment: .leading, spacing: 6) {
+                    // Home Team Row
+                    HStack(spacing: 8) {
+                        TeamLogoView(teamName: match.homeTeam.name, size: 22)
+                        Text(match.homeTeam.name)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(.primary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
+                    }
+
+                    // Away Team Row
+                    HStack(spacing: 8) {
+                        TeamLogoView(teamName: match.awayTeam.name, size: 22)
+                        Text(match.awayTeam.name)
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(.primary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
+                    }
+                }
+
+                Spacer()
+
+                // Group Tags & Favorites Button
+                VStack(alignment: .trailing, spacing: 6) {
+                    if let groupName = match.group, !groupName.isEmpty {
+                        Text(groupName)
+                            .font(.system(size: 9, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.orange)
                             .cornerRadius(6)
                     }
-                }
-                
-                HStack(spacing: 16) {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 8) {
-                            TeamLogoView(teamName: match.homeTeam, size: 20)
-                            Text(match.homeTeam)
-                                .font(.system(size: 14, weight: .semibold))
-                                .lineLimit(1)
-                        }
-                        HStack(spacing: 8) {
-                            TeamLogoView(teamName: match.awayTeam, size: 20)
-                            Text(match.awayTeam)
-                                .font(.system(size: 14, weight: .semibold))
-                                .lineLimit(1)
-                        }
+
+                    Button(action: onFavorite) {
+                        Image(systemName: isFavorited ? "heart.fill" : "heart")
+                            .font(.system(size: 15))
+                            .foregroundColor(isFavorited ? .red : .gray.opacity(0.7))
+                            .padding(4)
                     }
-                    
-                    Spacer()
-                    
-                    VStack(alignment: .trailing, spacing: 4) {
-                        Text(match.matchTime)
-                            .font(.system(size: 16, weight: .black, design: .rounded))
-                        Text("GMT")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Button(action: {
-                        favoritesManager.toggleFavorite(match.id)
-                    }) {
-                        Image(systemName: favoritesManager.isFavorited(match.id) ? "heart.fill" : "heart")
-                            .foregroundColor(favoritesManager.isFavorited(match.id) ? .red : .secondary)
-                            .font(.system(size: 16))
-                    }
-                    .padding(.leading, 4)
+                    .buttonStyle(PlainButtonStyle())
                 }
             }
-            .padding()
-            
-            if !timeRemainingString.isEmpty {
-                HStack {
-                    Image(systemName: "clock.badge.checkmark.fill")
-                        .font(.system(size: 11))
-                    Text(timeRemainingString)
-                        .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .tracking(0.3)
-                    Spacer()
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(Color.secondary.opacity(0.1))
-            }
+            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
+            .background(Color(.systemGray6))
+            .cornerRadius(12)
         }
-        .background(Color(.systemGray6))
-        .cornerRadius(14)
-        .onAppear(perform: updateCountdown)
-        .onReceive(timer) { _ in updateCountdown() }
-    }
-    
-    private func updateCountdown() {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd HH:mm"
-        formatter.timeZone = TimeZone(abbreviation: "GMT")
-        
-        guard let targetDate = formatter.date(from: "\(match.matchDate) \(match.matchTime)") else {
-            timeRemainingString = ""
-            return
-        }
-        
-        let now = Date()
-        if now >= targetDate {
-            timeRemainingString = "MATCH LIVE / CONCLUDED"
-            return
-        }
-        
-        let components = Calendar.current.dateComponents([.day, .hour, .minute, .second], from: now, to: targetDate)
-        
-        var parts: [String] = []
-        if let d = components.day, d > 0 { parts.append("\(d)d") }
-        if let h = components.hour, h > 0 { parts.append("\(h)h") }
-        if let m = components.minute, m > 0 { parts.append("\(m)m") }
-        if let s = components.second { parts.append("\(s)s") }
-        
-        timeRemainingString = "STARTS IN: " + parts.joined(separator: " ")
+        .buttonStyle(PlainButtonStyle())
     }
 }
