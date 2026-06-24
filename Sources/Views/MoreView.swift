@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct MoreView: View {
+    @State private var showPrivacySettings = false
+
     var body: some View {
         NavigationStack {
             List {
@@ -25,9 +27,11 @@ struct MoreView: View {
                 }
 
                 Section("Settings") {
-                    NavigationLink(destination: GDPRConsentView()) {
+                    // ✅ FIXED: Changed to a Button layout that opens GDPRConsentView inside a modal sheet
+                    Button(action: { showPrivacySettings = true }) {
                         Label("Privacy Settings", systemImage: "hand.raised")
                     }
+                    .foregroundColor(.primary)
                 }
 
                 Section {
@@ -40,6 +44,10 @@ struct MoreView: View {
                 }
             }
             .navigationTitle("More")
+            // ✅ FIXED: Launches with structural tracking parameters intact for continuous runtime updates
+            .sheet(isPresented: $showPrivacySettings) {
+                GDPRConsentView(isPresented: $showPrivacySettings)
+            }
         }
     }
 }
