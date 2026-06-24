@@ -1,83 +1,62 @@
+import Foundation
 import UserNotifications
 
 class NotificationManager {
     static let shared = NotificationManager()
     
-    // Key used to track sent article IDs locally so they are never repeated
-    private let postedHistoryKey = "sent_editorial_headlines_history"
-
-    func requestPermission() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
-            AppLogger.shared.log("Notification permission: \(granted)")
-        }
-    }
-
-    /// Schedules fresh daily headline reminders across 9am, 1pm, and 7pm slots matching available news pools
-    func scheduleDailyEditorialNotifications(articles: [EditorialItem]) {
-        // Clear out any old pending headline requests to start fresh
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["headline-9am", "headline-1pm", "headline-7pm"])
-        
-        let activeArticles = articles.filter { $0.active }
-        guard !activeArticles.isEmpty else { return }
-        
-        var sentIDs = UserDefaults.standard.stringArray(forKey: postedHistoryKey) ?? []
-        
-        // Find fresh news stories that haven't been posted yet
-        var availablePool = activeArticles.filter { !sentIDs.contains($0.id) }
-        
-        // Target daily intervals: 9 AM, 1 PM, 7 PM
-        let targetHours = [9, 13, 19]
-        let slotIdentifiers = ["headline-9am", "headline-1pm", "headline-7pm"]
-        
-        for index in 0..<targetHours.count {
-            // IF all headlines have been posted, stop scheduling until new articles drop
-            guard !availablePool.isEmpty else {
-                AppLogger.shared.log("⚠️ Notification warning: Out of fresh headlines. Pausing schedules.")
-                break
-            }
-            
-            // Extract the next fresh story from the top of the pool
-            let targetArticle = availablePool.removeFirst()
-            sentIDs.append(targetArticle.id)
-            
-            // Build the local notification payload
-            let content = UNMutableNotificationContent()
-            content.title = "StrikeScore Breaking News"
-            content.body = targetArticle.headline
-            content.sound = .default
-            
-            // Set up daily recurring calendar components for the hour slot
-            var components = DateComponents()
-            components.hour = targetHours[index]
-            components.minute = 0
-            
-            let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
-            let request = UNNotificationRequest(identifier: slotIdentifiers[index], content: content, trigger: trigger)
-            
-            UNUserNotificationCenter.current().add(request) { error in
-                if let error = error {
-                    AppLogger.shared.error("Failed scheduling slot \(slotIdentifiers[index]): \(error.localizedDescription)")
-                } else {
-                    AppLogger.shared.log("✅ Successfully scheduled headline slot \(targetHours[index]):00 for ID \(targetArticle.id)")
-                }
+    private init() {}
+    
+    func requestAuthorization() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+            if granted {
+                print("Notification permission approved.")
+            } else if let error = error {
+                print("Authorization failure sequence: \(error.localizedDescription)")
             }
         }
-        
-        // Persist history logs back to disk safely
-        UserDefaults.standard.set(sentIDs, forKey: postedHistoryKey)
     }
-
-    func scheduleMatchReminder(matchId: Int, matchTitle: String, date: Date) {
+    
+    // Scans preloaded match matrices to queue reminder parameters locally
+    func scheduleDailyReminders(for matches: [Match]) {
+        let center = UNUserNotificationCenter.current()
+        center.removeAllPendingNotificationRequests() // Prevent duplicate items across sessions
+        
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm"
+        formatter.timeZone = TimeZone(abbreviation: "GMT")
+        
+        let calendar = Calendar.current
+        let todayComponents = calendar.dateComponents([.year, .month, .day], from: Date())
+        
+        // Filter out matches occurring only on the modern active date matrix
+        let activeDailyMatches = matches.filter { match in
+            guard let matchDate = formatter.date(from: "\(match.matchDate) \(match.matchTime)") else { return false }
+            let matchComponents = calendar.dateComponents([.year, .month, .day], from: matchDate)
+            return matchComponents.year == todayComponents.year &&
+                   matchComponents.month == todayComponents.month &&
+                   matchComponents.day == todayComponents.day
+        }
+        
+        guard !activeDailyMatches.isEmpty else { return }
+        
+        // Build payload warning summary text parameters
         let content = UNMutableNotificationContent()
-        content.title = "Match Starting Soon!"
-        content.body = "\(matchTitle) kicks off in 15 minutes"
+        content.title = "⚽ Trending Matches Today"
+        content.body = "Don't miss out! Today features \(activeDailyMatches.count) updates waiting on your schedule."
         content.sound = .default
-
-        let triggerDate = Calendar.current.date(byAdding: .minute, value: -15, to: date)!
-        let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: triggerDate)
-        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
-
-        let request = UNNotificationRequest(identifier: "match-\(matchId)", content: content, trigger: trigger)
-        UNUserNotificationCenter.current().add(request)
+        
+        // Schedule alert to trigger locally at exactly 09:00 AM user local time context
+        var triggerComponents = DateComponents()
+        triggerComponents.hour = 9
+        triggerComponents.minute = 0
+        
+        let trigger = UNCalendarNotificationTrigger(dateMatching: triggerComponents, repeats: true)
+        let request = UNNotificationRequest(identifier: "daily_match_summary", content: content, trigger: trigger)
+        
+        center.add(request) { error in
+            if let error = error {
+                print("Failed to schedule daily summary: \(error.localizedDescription)")
+            }
+        }
     }
 }
