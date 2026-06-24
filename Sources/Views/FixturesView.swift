@@ -1,10 +1,9 @@
 import SwiftUI
 
 struct FixturesView: View {
-    // Uses the standard shared view-model pattern tracking the main API data array
-    @ObservedObject var viewModel = MatchesViewModel()
+    @StateObject private var viewModel = MatchesViewModel()
     @StateObject private var favoritesManager = FavoritesManager.shared
-    @State private var selectedMatch: Match? = nil
+    @State private var selectedMatch: FeaturedMatch? = nil
 
     var body: some View {
         NavigationStack {
@@ -38,21 +37,22 @@ struct FixturesView: View {
             }
             .navigationTitle("Schedule")
             .navigationBarTitleDisplayMode(.inline)
+            .task {
+                await viewModel.loadCMSData()
+            }
             .sheet(item: $selectedMatch) { match in
-                // Updated component context to accept the updated API Match type structure
                 FeaturedMatchDetailView(match: match)
             }
         }
     }
 
-    private var upcomingMatches: [Match] {
-        // Safely screens out completed or active fixtures from the target match list
-        viewModel.allMatches.filter { !$0.isLive && !$0.isFinished && $0.status.uppercased() != "IN_PLAY" }
+    private var upcomingMatches: [FeaturedMatch] {
+        viewModel.featuredMatches.filter { !$0.isLive && $0.status.uppercased() != "LIVE" && $0.status.uppercased() != "IN_PLAY" && $0.status.uppercased() != "FINISHED" }
     }
 }
 
 struct FixtureCard: View {
-    let match: Match
+    let match: FeaturedMatch
     let isFavorited: Bool
     let onTap: () -> Void
     let onFavorite: () -> Void
@@ -60,7 +60,7 @@ struct FixtureCard: View {
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 12) {
-                // Time & Date Column (Reads cleanly from Match computed helpers)
+                // Time & Date Left Column
                 VStack(alignment: .leading, spacing: 3) {
                     Text(match.displayDate)
                         .font(.system(size: 10, weight: .bold))
@@ -72,22 +72,34 @@ struct FixtureCard: View {
                 }
                 .frame(width: 75, alignment: .leading)
 
-                // Teams Stack Layout
+                // Team Rows Stack
                 VStack(alignment: .leading, spacing: 6) {
-                    // Home Team Row
+                    // Home Row
                     HStack(spacing: 8) {
-                        TeamLogoView(teamName: match.homeTeam.name, size: 22)
-                        Text(match.homeTeam.name)
+                        TeamLogoView(
+                            teamName: match.homeTeam,
+                            localSpreadsheetURL: match.homeFlagURL,
+                            fallbackColor: match.homeFallbackColor,
+                            initials: match.getTeamInitials(from: match.homeTeam),
+                            size: 22
+                        )
+                        Text(match.homeTeam)
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundColor(.primary)
                             .lineLimit(1)
                             .minimumScaleFactor(0.85)
                     }
 
-                    // Away Team Row
+                    // Away Row
                     HStack(spacing: 8) {
-                        TeamLogoView(teamName: match.awayTeam.name, size: 22)
-                        Text(match.awayTeam.name)
+                        TeamLogoView(
+                            teamName: match.awayTeam,
+                            localSpreadsheetURL: match.awayFlagURL,
+                            fallbackColor: match.awayFallbackColor,
+                            initials: match.getTeamInitials(from: match.awayTeam),
+                            size: 22
+                        )
+                        Text(match.awayTeam)
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundColor(.primary)
                             .lineLimit(1)
@@ -97,10 +109,10 @@ struct FixtureCard: View {
 
                 Spacer()
 
-                // Group Tags & Favorites Button
+                // Metadata Control Tag & Favorites
                 VStack(alignment: .trailing, spacing: 6) {
-                    if let groupName = match.group, !groupName.isEmpty {
-                        Text(groupName)
+                    if !match.group.isEmpty {
+                        Text(match.group)
                             .font(.system(size: 9, weight: .bold))
                             .foregroundColor(.white)
                             .padding(.horizontal, 6)
