@@ -24,21 +24,17 @@ struct StrikeScoreApp: App {
             ZStack {
                 switch currentPhase {
                 case .initialSplash:
-                    // ✅ FIX: Using your exact custom screen view from your project files folder
-                    SplashScreenView()
-                        .transition(.opacity)
-                        .onAppear {
-                            // Enforce visual sequence: Show your Splash first for 2.5 seconds
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-                                withAnimation(.easeInOut(duration: 0.4)) {
-                                    if hasSeenOnboarding {
-                                        currentPhase = .excelPreloading
-                                    } else {
-                                        currentPhase = .onboardingFlow
-                                    }
-                                }
+                    // ✅ FIX: Listen to your custom view animation completion step safely
+                    SplashScreenView(onAnimationComplete: {
+                        withAnimation(.easeInOut(duration: 0.4)) {
+                            if hasSeenOnboarding {
+                                currentPhase = .excelPreloading
+                            } else {
+                                currentPhase = .onboardingFlow
                             }
                         }
+                    })
+                    .transition(.opacity)
                         
                 case .onboardingFlow:
                     OnboardingView(onOnboardingComplete: {
@@ -52,7 +48,7 @@ struct StrikeScoreApp: App {
                     DataLoadingProgressView()
                         .transition(.opacity)
                         .task {
-                            // Preload Excel spreadsheet records safely inside its designated phase
+                            // Preload Excel data pipeline before launching main view dashboard
                             await viewModel.loadCMSData()
                             
                             withAnimation(.easeInOut(duration: 0.4)) {
@@ -62,7 +58,7 @@ struct StrikeScoreApp: App {
                         
                 case .mainDashboard:
                     ContentView()
-                        .environmentObject(viewModel)
+                        .environmentObject(viewModel) // ✅ Injected safely down to all child layout hierarchies
                         .transition(.opacity)
                 }
             }
@@ -70,7 +66,6 @@ struct StrikeScoreApp: App {
     }
 }
 
-// Phase 3 View: Dedicated Data Synchronization Preloader that displays right after Splash/Onboarding
 struct DataLoadingProgressView: View {
     var body: some View {
         ZStack {
