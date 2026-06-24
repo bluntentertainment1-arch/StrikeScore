@@ -15,12 +15,7 @@ struct ExtendedContentWebView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Dynamic Status Bar Spacer matching platform appearance
-            Color(.systemBackground)
-                .frame(height: safeAreaTopInset)
-                .ignoresSafeArea(edges: .top)
-            
-            // Top Navigation Control Bar
+            // Top Navigation Control Bar adapted for full-screen theater immersion
             HStack {
                 Button(action: { 
                     storage.webView?.goBack() 
@@ -36,13 +31,14 @@ struct ExtendedContentWebView: View {
                 
                 Spacer()
                 
-                Text("Content View")
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
-                    .foregroundColor(.primary)
+                Text("Theater Mode")
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .foregroundColor(.white.opacity(0.8))
                 
                 Spacer()
                 
                 Button(action: { 
+                    restoreStandardDeviceOrientation()
                     dismiss() 
                 }) {
                     Text("Close")
@@ -51,23 +47,48 @@ struct ExtendedContentWebView: View {
                 }
             }
             .padding(.horizontal)
-            .padding(.vertical, 12)
-            .background(Color(.systemBackground))
+            .padding(.vertical, 10)
+            .background(Color.black) // Dark bar background to blend with movie style frames
             
             Divider()
+                .background(Color.white.opacity(0.15))
             
             // Re-usable persistent rendering core
             SecureWebEngineRepresentable(url: url, storage: storage, canGoBack: $canGoBack)
-                .ignoresSafeArea(edges: .bottom)
+                .ignoresSafeArea()
         }
-        .background(Color(.systemBackground))
+        .background(Color.black) // High contrast base layer prevents light bleed lines
+        .toolbar(.hidden, for: .navigationBar) // Strip native navigation wrappers if pushed onto stack
+        .onAppear {
+            forceLandscapeTheaterOrientation()
+        }
+        .onDisappear {
+            restoreStandardDeviceOrientation()
+        }
     }
     
-    /// Fallback computation logic for safe-area insets across variable screen dimensions
-    private var safeAreaTopInset: CGFloat {
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let topInset = windowScene.windows.first?.safeAreaInsets.top else { return 20 }
-        return topInset
+    // --- Dynamic Orientation Controls ---
+    
+    private func forceLandscapeTheaterOrientation() {
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene else { return }
+        
+        if #available(iOS 16.0, *) {
+            windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .landscapeRight)) { error in
+                AppLogger.shared.error("Theater Mode rotation request was bypassed: \(error.localizedDescription)")
+            }
+        } else {
+            UIDevice.current.setValue(UIInterfaceOrientation.landscapeRight.rawValue, forKey: "orientation")
+        }
+    }
+
+    private func restoreStandardDeviceOrientation() {
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene else { return }
+        
+        if #available(iOS 16.0, *) {
+            windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait))
+        } else {
+            UIDevice.current.setValue(UIInterfaceOrientation.portrait.rawValue, forKey: "orientation")
+        }
     }
 }
 
@@ -95,6 +116,8 @@ struct SecureWebEngineRepresentable: UIViewRepresentable {
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
         webView.scrollView.bounces = false
+        webView.backgroundColor = .black
+        webView.isOpaque = false
         
         // Store instances securely inside the persistent reference container
         storage.webView = webView
