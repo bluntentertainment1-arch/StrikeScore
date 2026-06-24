@@ -41,7 +41,6 @@ struct FixturesView: View {
                         }
                     }
                     .padding(.vertical)
-                    // High-contrast spacing block ensures content is not hidden by the bottom tab row
                     .padding(.bottom, 85)
                 }
             }
@@ -98,7 +97,52 @@ struct SearchBarContainer: View {
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 12)
-        .background(Color(.systemGray5)) // Enhanced contrast block element background
+        .background(Color(.systemGray5))
         .cornerRadius(10)
+    }
+}
+
+// ✅ FIXED: Restored FixtureCard definition here to resolve scope compiler errors
+struct FixtureCard: View {
+    let match: FeaturedMatch
+    let isFavorited: Bool
+    let onTap: () -> Void
+    let onFavorite: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(match.competition)
+                        .font(.caption2.bold())
+                        .foregroundColor(.green)
+                    
+                    Text("\(match.matchDate) • \(match.matchTime)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+                
+                VStack(alignment: .trailing, spacing: 4) {
+                    Text(match.homeTeam)
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(.primary)
+                    Text(match.awayTeam)
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(.primary)
+                }
+                
+                Button(action: onFavorite) {
+                    Image(systemName: isFavorited ? "heart.fill" : "heart")
+                        .foregroundColor(isFavorited ? .red : .gray)
+                }
+                .padding(.leading, 8)
+            }
+            .padding()
+            .background(Color(.systemGray6))
+            .cornerRadius(12)
+        }
+        .buttonStyle(PlainButtonStyle())
     }
 }
