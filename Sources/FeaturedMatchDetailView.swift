@@ -1,13 +1,12 @@
 import SwiftUI
-import SafariServices
 
 struct FeaturedMatchDetailView: View {
     let match: FeaturedMatch
     @Environment(\.dismiss) private var dismiss
     @StateObject private var favoritesManager = FavoritesManager.shared
     
-    // Tracks the active URL structure to safely trigger Safari context
-    @State private var webStreamURL: URL? = nil
+    // Tracks the active URL structure to safely trigger custom view context
+    @State private var displayTargetURL: URL? = nil
 
     var body: some View {
         NavigationStack {
@@ -97,13 +96,13 @@ struct FeaturedMatchDetailView: View {
                     if match.hasAdditionalContent {
                         HStack(spacing: 12) {
                             if let l1 = match.link1, let url = cleanAndVerifyURL(l1) {
-                                TargetLinkButton(title: "Link 1", action: { webStreamURL = url })
+                                TargetLinkButton(title: "Link 1", action: { displayTargetURL = url })
                             }
                             if let l2 = match.link2, let url = cleanAndVerifyURL(l2) {
-                                TargetLinkButton(title: "Link 2", action: { webStreamURL = url })
+                                TargetLinkButton(title: "Link 2", action: { displayTargetURL = url })
                             }
                             if let l3 = match.link3, let url = cleanAndVerifyURL(l3) {
-                                TargetLinkButton(title: "Link 3", action: { webStreamURL = url })
+                                TargetLinkButton(title: "Link 3", action: { displayTargetURL = url })
                             }
                         }
                         .padding(.horizontal)
@@ -129,11 +128,12 @@ struct FeaturedMatchDetailView: View {
                     }
                 }
             }
+            // ✅ UPDATED: Secure full screen container mapping directly to ExtendedContentWebView
             .fullScreenCover(item: Binding(
-                get: { webStreamURL != nil ? IdentifiableURL(url: webStreamURL!) : nil },
-                set: { webStreamURL = $0?.url }
+                get: { displayTargetURL != nil ? IdentifiableURL(url: displayTargetURL!) : nil },
+                set: { displayTargetURL = $0?.url }
             )) { identifiable in
-                SafariViewControllerWrapper(url: identifiable.url)
+                ExtendedContentWebView(url: identifiable.url)
                     .ignoresSafeArea()
             }
         }
@@ -161,24 +161,6 @@ struct IdentifiableURL: Identifiable {
     let url: URL
 }
 
-// Native Apple Safari Controller representation wrapper object
-struct SafariViewControllerWrapper: UIViewControllerRepresentable {
-    let url: URL
-    
-    func makeUIViewController(context: Context) -> SFSafariViewController {
-        let config = SFSafariViewController.Configuration()
-        config.entersReaderIfAvailable = false
-        config.barCollapsingEnabled = true
-        
-        let safariVC = SFSafariViewController(url: url, configuration: config)
-        safariVC.preferredControlTintColor = .systemGreen
-        return safariVC
-    }
-    
-    func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {}
-}
-
-// ✅ FIXED: Restored missing InfoDetailRow component implementation
 struct InfoDetailRow: View {
     let title: String
     let value: String
@@ -197,7 +179,6 @@ struct InfoDetailRow: View {
     }
 }
 
-// ✅ FIXED: Restored missing TargetLinkButton component implementation
 struct TargetLinkButton: View {
     let title: String
     let action: () -> Void
