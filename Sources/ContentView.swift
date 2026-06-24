@@ -6,6 +6,9 @@ struct ContentView: View {
     
     var body: some View {
         ZStack {
+            Color(.systemBackground)
+                .ignoresSafeArea()
+            
             TabView(selection: $selectedTab) {
                 HomeView()
                     .tabItem { Label("Home", systemImage: "house") }
@@ -34,7 +37,6 @@ struct ContentView: View {
                     .tag(4)
             }
             .tint(.green)
-            // Structural constraint modifier guarantees your subviews layout safely clear of your tab item borders
             .safeAreaInset(edge: .bottom) {
                 Color.clear.frame(height: 50)
             }
@@ -43,23 +45,25 @@ struct ContentView: View {
                 SideMenuView(isShowing: $showMenu)
             }
         }
+        // ✅ FIXED: Realigned structural menu overlay trigger area to keep it clear of device status items and back buttons
         .overlay(
             VStack {
                 HStack {
                     Button(action: { showMenu.toggle() }) {
                         Image(systemName: "line.3.horizontal")
-                            .font(.title2)
-                            .foregroundColor(.white) // White text color provides strong contrast under dark theme layouts
-                            .padding()
-                            .background(Color.black.opacity(0.5))
+                            .font(.title3)
+                            .foregroundColor(.white)
+                            .padding(10)
+                            .background(Color.black.opacity(0.65))
                             .clipShape(Circle())
                     }
-                    .padding(.leading, 10)
-                    .padding(.top, 4)
+                    .padding(.leading, 16)
+                    .padding(.top, 55) // Pushes container button clear of system level device bars
                     Spacer()
                 }
                 Spacer()
             }
+            .ignoresSafeArea()
         )
     }
 }
