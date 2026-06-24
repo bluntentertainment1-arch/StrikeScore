@@ -1,7 +1,8 @@
 import SwiftUI
 
 struct HomeView: View {
-    @StateObject private var viewModel = MatchesViewModel()
+    // ✅ FIX: Listen to the source of truth injected directly by our App Root file structure
+    @EnvironmentObject var viewModel: MatchesViewModel
     @StateObject private var favoritesManager = FavoritesManager.shared
     
     @State private var searchText = ""
@@ -12,7 +13,6 @@ struct HomeView: View {
         Calendar.current.date(byAdding: .day, value: selectedDate, to: Date())!
     }
 
-    // NEW: Grabs finished match rows extracted from ExcelCMSService
     var finishedResultsMatches: [FeaturedMatch] {
         viewModel.featuredMatches.filter { 
             $0.status.uppercased() == "FINISHED" || $0.status.uppercased() == "FT" 
@@ -36,7 +36,6 @@ struct HomeView: View {
     }
 
     var body: some View {
-        // NOTE: NavigationStack has been moved up to ContentView to support cleaner global toolbar handling
         ScrollView {
             VStack(spacing: 16) {
                 
@@ -52,7 +51,7 @@ struct HomeView: View {
                     .padding(.horizontal)
                 }
                 
-                // 2. FIXED: Latest Results Carousel (Replacing Live Section)
+                // 2. Latest Results Carousel
                 if !finishedResultsMatches.isEmpty && searchText.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(spacing: 6) {
@@ -117,13 +116,12 @@ struct HomeView: View {
         .sheet(item: $selectedMatch) { match in
             FeaturedMatchDetailView(match: match)
         }
-        .task {
+        .refreshable {
             await viewModel.loadCMSData()
         }
     }
 }
 
-// NEW: Clean card format displaying final scores neutrally without green live colors
 struct HomeResultsCarouselCard: View {
     let match: FeaturedMatch
     
@@ -135,7 +133,6 @@ struct HomeResultsCarouselCard: View {
                 .lineLimit(1)
             
             HStack(spacing: 6) {
-                // Home Team Box
                 VStack(spacing: 4) {
                     TeamLogoView(
                         teamName: match.homeTeam,
@@ -151,7 +148,6 @@ struct HomeResultsCarouselCard: View {
                 }
                 .frame(width: 75)
                 
-                // Final Score Center block
                 VStack(spacing: 2) {
                     Text(match.displayScore)
                         .font(.system(size: 16, weight: .black, design: .rounded))
@@ -162,7 +158,6 @@ struct HomeResultsCarouselCard: View {
                 }
                 .frame(width: 50)
                 
-                // Away Team Box
                 VStack(spacing: 4) {
                     TeamLogoView(
                         teamName: match.awayTeam,
@@ -187,13 +182,11 @@ struct HomeResultsCarouselCard: View {
     }
 }
 
-// ✅ Added component implementation to match your layout parameters perfectly
 struct DateBubbleView: View {
     let day: Int
     let isSelected: Bool
     let onTap: () -> Void
     
-    // Compute the accurate textual date information matching the layout index offset
     private var calculatedDate: Date {
         Calendar.current.date(byAdding: .day, value: day, to: Date()) ?? Date()
     }
