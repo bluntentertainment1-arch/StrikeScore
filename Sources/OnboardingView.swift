@@ -8,11 +8,17 @@ struct OnboardingView: View {
     @State private var currentPage = 0
     var onOnboardingComplete: () -> Void
     
+    // ✅ UPDATED: Added Fixtures & Results directly to your existing pages structure
     let pages = [
         OnboardingPage(
             image: "sportscourt.fill",
             title: "Live Football Scores",
             description: "Get real-time updates from matches around the world"
+        ),
+        OnboardingPage(
+            image: "calendar.badge.clock",
+            title: "Fixtures & Results",
+            description: "Explore comprehensive match schedules and past results"
         ),
         OnboardingPage(
             image: "newspaper.fill",
@@ -46,6 +52,7 @@ struct OnboardingView: View {
                 }
                 Spacer()
                 
+                // Triggers dynamically only on the last index of the updated 3-page sequence
                 if currentPage == pages.count - 1 {
                     Button(action: { finishFlow() }) {
                         Text("Get Started")
@@ -65,7 +72,7 @@ struct OnboardingView: View {
     
     private func finishFlow() {
         hasSeenOnboarding = true
-        // Sequential Authorization Triggering
+        // Sequential Authorization Triggering remains perfectly intact
         requestTrackingPermission {
             requestNotificationPermission {
                 DispatchQueue.main.async {
@@ -76,7 +83,6 @@ struct OnboardingView: View {
     }
     
     private func requestTrackingPermission(completion: @escaping () -> Void) {
-        // Enforce minor dispatch window delay to ensure system view hierarchy is ready for standard prompt modal alerts
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
             ATTrackingManager.requestTrackingAuthorization { _ in
                 completion()
