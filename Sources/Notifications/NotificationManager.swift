@@ -10,26 +10,36 @@ class NotificationManager {
         }
     }
 
-    // Accepting Match models directly so you do not need to manually parse strings upstream
-    func scheduleMatchReminder(for match: Match) {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
-        formatter.timeZone = TimeZone(identifier: "UTC")
-        
-        // Extract a valid system Date sequence out of the model string property
-        guard let matchDate = formatter.date(from: match.utcDate) else { return }
-
+    func scheduleMatchReminder(matchId: String, matchTitle: String, date: Date) {
         let content = UNMutableNotificationContent()
         content.title = "Match Starting Soon!"
-        content.body = "\(match.homeTeam.name) vs \(match.awayTeam.name) kicks off in 15 minutes"
+        content.body = "\(matchTitle) kicks off in 15 minutes"
         content.sound = .default
 
-        // Schedules local notifications exactly 15 minutes prior to game kick-off
-        let triggerDate = Calendar.current.date(byAdding: .minute, value: -15, to: matchDate)!
+        let triggerDate = Calendar.current.date(byAdding: .minute, value: -15, to: date)!
         let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: triggerDate)
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
 
-        let request = UNNotificationRequest(identifier: "match-\(match.id)", content: content, trigger: trigger)
+        let request = UNNotificationRequest(identifier: "match-\(matchId)", content: content, trigger: trigger)
+        UNUserNotificationCenter.current().add(request)
+    }
+
+    // ✅ FIXED: Restored missing trending news & daily editorial push routing method
+    func scheduleDailyEditorialNotifications(articles: [EditorialItem]) {
+        AppLogger.shared.log("Scheduling notification updates for \(articles.count) editorial news articles.")
+        
+        let content = UNMutableNotificationContent()
+        content.title = "Trending Sports News"
+        content.body = "Check out the latest trending match updates and analysis!"
+        content.sound = .default
+
+        // Fires a daily notification reminder
+        var components = DateComponents()
+        components.hour = 10 // 10:00 AM
+        components.minute = 0
+        
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
+        let request = UNNotificationRequest(identifier: "daily-editorial-news", content: content, trigger: trigger)
         UNUserNotificationCenter.current().add(request)
     }
 }
