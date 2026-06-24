@@ -8,24 +8,17 @@ struct ContentView: View {
         ZStack {
             TabView(selection: $selectedTab) {
                 HomeView()
-                    .tabItem {
-                        Label("Home", systemImage: "house")
-                    }
+                    .tabItem { Label("Home", systemImage: "house") }
                     .tag(0)
                 
                 LiveMatchesView()
-                    .tabItem {
-                        Label("Live", systemImage: "sportscourt")
-                    }
+                    .tabItem { Label("Live", systemImage: "sportscourt") }
                     .tag(1)
                 
                 FixturesView()
-                    .tabItem {
-                        Label("Schedule", systemImage: "calendar")
-                    }
+                    .tabItem { Label("Schedule", systemImage: "calendar") }
                     .tag(2)
                 
-                // Keep your blazing Explore Tab Menu Setup completely intact
                 EditorialView()
                     .tabItem {
                         VStack {
@@ -37,28 +30,32 @@ struct ContentView: View {
                     .tag(3)
                 
                 FavoritesView()
-                    .tabItem {
-                        Label("Favorites", systemImage: "heart")
-                    }
+                    .tabItem { Label("Favorites", systemImage: "heart") }
                     .tag(4)
             }
             .tint(.green)
+            // Structural constraint modifier guarantees your subviews layout safely clear of your tab item borders
+            .safeAreaInset(edge: .bottom) {
+                Color.clear.frame(height: 50)
+            }
             
-            // Side menu overlay
             if showMenu {
                 SideMenuView(isShowing: $showMenu)
             }
         }
         .overlay(
-            // Hamburger button configuration
             VStack {
                 HStack {
                     Button(action: { showMenu.toggle() }) {
                         Image(systemName: "line.3.horizontal")
                             .font(.title2)
-                            .foregroundColor(.primary)
+                            .foregroundColor(.white) // White text color provides strong contrast under dark theme layouts
                             .padding()
+                            .background(Color.black.opacity(0.5))
+                            .clipShape(Circle())
                     }
+                    .padding(.leading, 10)
+                    .padding(.top, 4)
                     Spacer()
                 }
                 Spacer()
