@@ -1,12 +1,13 @@
 import SwiftUI
-import WebKit
+import SafariServices
 
 struct FeaturedMatchDetailView: View {
     let match: FeaturedMatch
     @Environment(\.dismiss) private var dismiss
     @StateObject private var favoritesManager = FavoritesManager.shared
     
-    @State private var activeTargetURL: String? = nil
+    // Tracks the active URL structure to safely trigger Safari context
+    @State private var webStreamURL: URL? = nil
 
     var body: some View {
         NavigationStack {
@@ -92,17 +93,17 @@ struct FeaturedMatchDetailView: View {
                     .cornerRadius(14)
                     .padding(.horizontal)
 
-                    // Button Section matching image layouts
+                    // Links Section Integration
                     if match.hasAdditionalContent {
                         HStack(spacing: 12) {
-                            if let l1 = match.link1, !l1.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                TargetLinkButton(title: "Link 1", action: { activeTargetURL = l1 })
+                            if let l1 = match.link1, let url = cleanAndVerifyURL(l1) {
+                                TargetLinkButton(title: "Link 1", action: { webStreamURL = url })
                             }
-                            if let l2 = match.link2, !l2.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                TargetLinkButton(title: "Link 2", action: { activeTargetURL = l2 })
+                            if let l2 = match.link2, let url = cleanAndVerifyURL(l2) {
+                                TargetLinkButton(title: "Link 2", action: { webStreamURL = url })
                             }
-                            if let l3 = match.link3, !l3.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                TargetLinkButton(title: "Link 3", action: { activeTargetURL = l3 })
+                            if let l3 = match.link3, let url = cleanAndVerifyURL(l3) {
+                                TargetLinkButton(title: "Link 3", action: { webStreamURL = url })
                             }
                         }
                         .padding(.horizontal)
@@ -128,141 +129,50 @@ struct FeaturedMatchDetailView: View {
                     }
                 }
             }
-            .sheet(item: Binding(
-                get: { activeTargetURL != nil ? ItemContainer(urlString: activeTargetURL!) : nil },
-                set: { activeTargetURL = $0?.urlString }
-            )) { container in
-                ContentViewer(urlString: container.urlString)
-            }
-        }
-    }
-}
-
-struct ItemContainer: Identifiable {
-    let id = UUID()
-    let urlString: String
-}
-
-struct TargetLinkButton: View {
-    let title: String
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                Image(systemName: "arrow.up.forward.app")
-                    .font(.system(size: 13, weight: .bold))
-                Text(title)
-                    .font(.system(size: 13, weight: .bold))
-            }
-            .foregroundColor(.green)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color.green.opacity(0.6), lineWidth: 1.5)
-            )
-            .background(Color.green.opacity(0.04))
-            .cornerRadius(10)
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-}
-
-struct ContentViewer: View {
-    let urlString: String
-    @Environment(\.dismiss) private var dismiss
-    
-    var body: some View {
-        NavigationStack {
-            ZStack {
-                Color.black.ignoresSafeArea()
-                CustomWebFrameRepresentable(urlString: urlString)
+            // ✅ FIX: Replaced custom sheet container with Safari controller sheet wrapper to stop looping
+            .fullScreenCover(item: Binding(
+                get: { webStreamURL != nil ? IdentifiableURL(url: webStreamURL!) : nil },
+                set: { webStreamURL = $0?.url }
+            )) { identifiable in
+                SafariViewControllerWrapper(url: identifiable.url)
                     .ignoresSafeArea()
             }
-            .navigationTitle("Details")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Minimize") { dismiss() }
-                        .foregroundColor(.green)
-                }
-            }
-        }
-    }
-}
-
-struct CustomWebFrameRepresentable: UIViewRepresentable {
-    let urlString: String
-    
-    class Coordinator: NSObject, WKUIDelegate, WKNavigationDelegate {
-        var parent: CustomWebFrameRepresentable
-        
-        init(_ parent: CustomWebFrameRepresentable) {
-            self.parent = parent
-        }
-        
-        // Prevents loop crash by forcing new tab target link requests to open right inside the existing webview
-        func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
-            if navigationAction.targetFrame == nil {
-                webView.load(navigationAction.request)
-            }
-            return nil
         }
     }
     
-    func makeCoordinator() -> Coordinator {
-        Coordinator(self)
-    }
-    
-    func makeUIView(context: Context) -> WKWebView {
-        let config = WKWebViewConfiguration()
-        config.allowsInlineMediaPlayback = true
-        config.mediaTypesRequiringUserActionForPlayback = []
-        
-        let webView = WKWebView(frame: .zero, configuration: config)
-        webView.backgroundColor = .black
-        webView.uiDelegate = context.coordinator
-        webView.navigationDelegate = context.coordinator
-        
-        // Enabled scroll so standard video iframe embeds don't scale compress and error out
-        webView.scrollView.isScrollEnabled = true
-        return webView
-    }
-    
-    func updateUIView(_ uiView: WKWebView, context: Context) {
-        var cleanedURLString = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        // Fallback safety filter: Extract URL if an full html iframe snippet gets put in the spreadsheet row by mistake
-        if cleanedURLString.contains("src=") {
+    // Safely parse out string formats coming from Excel rows
+    private func cleanAndVerifyURL(_ rawString: String) -> URL? {
+        var clean = rawString.trimmingCharacters(in: .whitespacesAndNewlines)
+        if clean.contains("src=") {
             let pattern = "src=\"([^\"]+)\""
             if let regex = try? NSRegularExpression(pattern: pattern, options: []),
-               let match = regex.firstMatch(in: cleanedURLString, options: [], range: NSRange(cleanedURLString.startIndex..., in: cleanedURLString)),
-               let range = Range(match.range(at: 1), in: cleanedURLString) {
-                cleanedURLString = String(cleanedURLString[range])
+               let match = regex.firstMatch(in: clean, options: [], range: NSRange(clean.startIndex..., in: clean)),
+               let range = Range(match.range(at: 1), in: clean) {
+                clean = String(clean[range])
             }
         }
-        
-        guard let url = URL(string: cleanedURLString) else { return }
-        let request = URLRequest(url: url)
-        uiView.load(request)
+        return URL(string: clean)
     }
 }
 
-struct InfoDetailRow: View {
-    let title: String
-    let value: String
+struct IdentifiableURL: Identifiable {
+    let id = UUID()
+    let url: URL
+}
+
+// Native Apple Safari Controller representation wrapper object
+struct SafariViewControllerWrapper: UIViewControllerRepresentable {
+    let url: URL
     
-    var body: some View {
-        HStack {
-            Text(title)
-                .foregroundColor(.secondary)
-                .font(.system(size: 13))
-            Spacer()
-            Text(value)
-                .fontWeight(.semibold)
-                .font(.system(size: 13))
-        }
-        .padding(.vertical, 2)
+    func makeUIViewController(context: Context) -> SFSafariViewController {
+        let config = SFSafariViewController.Configuration()
+        config.entersReaderIfAvailable = false
+        config.barCollapsingEnabled = true
+        
+        let safariVC = SFSafariViewController(url: url, configuration: config)
+        safariVC.preferredControlTintColor = .systemGreen
+        return safariVC
     }
+    
+    func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {}
 }
