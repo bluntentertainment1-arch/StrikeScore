@@ -14,13 +14,10 @@ class MatchesViewModel: ObservableObject {
         isLoading = true
         
         do {
-            // Your networking fetch engine runs here...
+            // Your custom networking fetch data-pipeline runs here...
             
-            // --- AUTOMATICALLY HOOK COMPLETED HEADLINES TO SYSTEM NOTIFICATIONS ---
-            let headlinesList = self.editorialItems.map { $0.title }
-            if !headlinesList.isEmpty {
-                NotificationManager.shared.scheduleDailyEditorialDigests(headlines: headlinesList)
-            }
+            // --- AUTOMATICALLY HOOK COMPLETED UPDATES TO NOTIFICATION SERVICE ---
+            NotificationManager.shared.scheduleDailyEditorialDigests(headlines: ["Discover Todays Top Football News & Updates"])
             
         } catch {
             AppLogger.shared.error("Failed loading spreadsheet data: \(error.localizedDescription)")
