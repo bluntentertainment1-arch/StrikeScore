@@ -16,13 +16,10 @@ class NotificationManager {
         }
     }
     
-    // ✅ RESTORED: Satisfies the calls on lines 38 and 64 of MatchesViewModel.swift
     func scheduleDailyEditorialNotifications(articles: [EditorialItem]) {
-        // Keep existing trending news scheduling logic here intact
         print("Scheduling reminders for \(articles.count) news updates.")
     }
     
-    // Scans preloaded match matrices to queue reminder parameters locally
     func scheduleDailyReminders(for matches: [Match]) {
         let center = UNUserNotificationCenter.current()
         center.removeAllPendingNotificationRequests() 
@@ -34,9 +31,9 @@ class NotificationManager {
         let calendar = Calendar.current
         let todayComponents = calendar.dateComponents([.year, .month, .day], from: Date())
         
-        // ✅ FIX: Properties updated to match the explicit parameters inside Match.swift (.date and .time)
+        // ✅ FIXED: Properties changed back to matchDate and matchTime to match the model target
         let activeDailyMatches = matches.filter { match in
-            guard let matchDate = formatter.date(from: "\(match.date) \(match.time)") else { return false }
+            guard let matchDate = formatter.date(from: "\(match.matchDate) \(match.matchTime)") else { return false }
             let matchComponents = calendar.dateComponents([.year, .month, .day], from: matchDate)
             return matchComponents.year == todayComponents.year &&
                    matchComponents.month == todayComponents.month &&
