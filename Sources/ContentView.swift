@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ContentView: View {
+    @EnvironmentObject var viewModel: MatchesViewModel // Receives preloaded data from OnboardingView
     @State private var selectedTab = 0
     @State private var showMenu = false
     
