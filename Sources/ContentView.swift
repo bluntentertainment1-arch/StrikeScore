@@ -5,7 +5,7 @@ struct ContentView: View {
     @State private var selectedTab = 0
     @State private var showMenu = false
     
-    // ✅ GDPR INTEGRATION: Triggers privacy prompt if choices are not saved yet
+    // ✅ GDPR INTEGRATION: Checks verification criteria cleanly on initialization
     @State private var needsPrivacyConsent = !GDPRConsentManager.shared.hasConsent
     
     var body: some View {
@@ -65,7 +65,7 @@ struct ContentView: View {
             }
         }
         .animation(.easeInOut, value: showMenu)
-        // ✅ GDPR SCREEN LOCK OVERLAY
+        // ✅ GDPR SCREEN OVERLAY LOCK
         .fullScreenCover(isPresented: $needsPrivacyConsent) {
             GDPRConsentView(isPresented: $needsPrivacyConsent)
         }
