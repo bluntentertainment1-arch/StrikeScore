@@ -96,7 +96,9 @@ struct SecureWebEngineRepresentable: UIViewRepresentable {
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             DispatchQueue.main.async { self.parent.canGoBack = webView.canGoBack }
         }
-        func webView(_ webView: WKWebView, didCommit navigation: UIViewNavigation!) {
+        
+        // ✅ FIXED: Changed parameter type from 'UIViewNavigation!' to 'WKNavigation!'
+        func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
             DispatchQueue.main.async { self.parent.canGoBack = webView.canGoBack }
         }
     }
