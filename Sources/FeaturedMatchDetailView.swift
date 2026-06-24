@@ -129,7 +129,6 @@ struct FeaturedMatchDetailView: View {
                     }
                 }
             }
-            // ✅ FIX: Replaced custom sheet container with Safari controller sheet wrapper to stop looping
             .fullScreenCover(item: Binding(
                 get: { webStreamURL != nil ? IdentifiableURL(url: webStreamURL!) : nil },
                 set: { webStreamURL = $0?.url }
@@ -155,6 +154,8 @@ struct FeaturedMatchDetailView: View {
     }
 }
 
+// MARK: - Core Support Frameworks & Elements
+
 struct IdentifiableURL: Identifiable {
     let id = UUID()
     let url: URL
@@ -175,4 +176,45 @@ struct SafariViewControllerWrapper: UIViewControllerRepresentable {
     }
     
     func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {}
+}
+
+// ✅ FIXED: Restored missing InfoDetailRow component implementation
+struct InfoDetailRow: View {
+    let title: String
+    let value: String
+    
+    var body: some View {
+        HStack {
+            Text(title)
+                .foregroundColor(.secondary)
+                .font(.system(size: 13))
+            Spacer()
+            Text(value)
+                .fontWeight(.semibold)
+                .font(.system(size: 13))
+        }
+        .padding(.vertical, 2)
+    }
+}
+
+// ✅ FIXED: Restored missing TargetLinkButton component implementation
+struct TargetLinkButton: View {
+    let title: String
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                Image(systemName: "play.tv.fill")
+                    .font(.system(size: 12))
+                Text(title)
+                    .font(.system(size: 14, weight: .bold))
+            }
+            .foregroundColor(.white)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(Color.green)
+            .cornerRadius(10)
+        }
+    }
 }
