@@ -1,8 +1,8 @@
 import SwiftUI
 
 struct FixturesView: View {
-    // ✅ FIX: Access the clean non-wrapped object data matrix directly
-    @EnvironmentObject private var viewModel: MatchesViewModel
+    // Access the object model directly to prevent proxy binding resolution errors
+    @EnvironmentObject var viewModel: MatchesViewModel
     
     private var filteredMatches: [Match] {
         let formatter = DateFormatter()
@@ -12,11 +12,11 @@ struct FixturesView: View {
         let todayString = formatter.string(from: Date())
         guard let benchmarkDate = formatter.date(from: todayString) else { return [] }
         
-        // ✅ FIX: Properties updated from matchDate to date to accurately read Match.swift
+        // Explicitly reading matchDate property names
         return viewModel.allMatches.filter { match in
-            guard let matchDate = formatter.date(from: match.date) else { return false }
+            guard let matchDate = formatter.date(from: match.matchDate) else { return false }
             return matchDate >= benchmarkDate
-        }.sorted { $0.date < $1.date }
+        }.sorted { $0.matchDate < $1.matchDate }
     }
     
     var body: some View {
@@ -61,8 +61,7 @@ struct ScheduledMatchCardRow: View {
         VStack(spacing: 0) {
             VStack(spacing: 12) {
                 HStack {
-                    // ✅ FIX: Fixed reference string from matchDate to date
-                    Text("\(match.date)")
+                    Text("\(match.matchDate)")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundColor(.secondary)
                     Spacer()
@@ -96,8 +95,7 @@ struct ScheduledMatchCardRow: View {
                     Spacer()
                     
                     VStack(alignment: .trailing, spacing: 4) {
-                        // ✅ FIX: Fixed reference string from matchTime to time
-                        Text(match.time)
+                        Text(match.matchTime)
                             .font(.system(size: 16, weight: .black, design: .rounded))
                         Text("GMT")
                             .font(.system(size: 10, weight: .bold))
@@ -141,8 +139,7 @@ struct ScheduledMatchCardRow: View {
         formatter.dateFormat = "yyyy-MM-dd HH:mm"
         formatter.timeZone = TimeZone(abbreviation: "GMT")
         
-        // ✅ FIX: Mixed fields changed to access native match.date and match.time properties cleanly
-        guard let targetDate = formatter.date(from: "\(match.date) \(match.time)") else {
+        guard let targetDate = formatter.date(from: "\(match.matchDate) \(match.matchTime)") else {
             timeRemainingString = ""
             return
         }
