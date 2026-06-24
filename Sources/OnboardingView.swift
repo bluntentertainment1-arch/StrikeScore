@@ -1,28 +1,21 @@
 import SwiftUI
 import AppTrackingTransparency
 import AdSupport
+import UserNotifications // Added for push notification permissions
 
 struct OnboardingView: View {
+    @StateObject private var viewModel = MatchesViewModel()
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
     @AppStorage("hasRequestedATT") private var hasRequestedATT = false
+    @AppStorage("hasRequestedNotifications") private var hasRequestedNotifications = false
     @State private var currentPage = 0
-    @State private var showSplash = true // ALWAYS start with splash on launch
+    @State private var showSplash = true
     
     let pages = [
         OnboardingPage(
             image: "sportscourt.fill",
             title: "Live Football Scores",
             description: "Get real-time updates from matches around the world"
-        ),
-        OnboardingPage(
-            image: "tablecells.fill",
-            title: "Track Standings",
-            description: "Follow your favorite teams and leagues with live tables"
-        ),
-        OnboardingPage(
-            image: "bell.fill",
-            title: "Match Alerts",
-            description: "Never miss a goal with instant notifications"
         ),
         OnboardingPage(
             image: "newspaper.fill",
@@ -34,18 +27,20 @@ struct OnboardingView: View {
     var body: some View {
         if showSplash {
             SplashScreenView()
-                .onAppear {
-                    // Automatically transition out of splash after 2.5 seconds
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-                        withAnimation {
-                            showSplash = false
-                        }
+                .task {
+                    await viewModel.loadCMSData()
+                    try? await Task.sleep(nanoseconds: 2_500_000_000)
+                    withAnimation {
+                        showSplash = false
                     }
                 }
         } else if hasSeenOnboarding {
             ContentView()
+                .environmentObject(viewModel)
         } else {
             ZStack {
+                Color(.systemBackground).ignoresSafeArea()
+                
                 TabView(selection: $currentPage) {
                     ForEach(0..<pages.count, id: \.self) { index in
                         OnboardingPageView(page: pages[index])
@@ -91,7 +86,37 @@ struct OnboardingView: View {
     
     private func skipOnboarding() {
         hasSeenOnboarding = true
-        requestATT()
+        
+        // Triggers the system alerts sequentially
+        requestNotificationPermission {
+            requestATT()
+        }
+    }
+    
+    private func requestNotificationPermission(completion: @escaping () -> Void) {
+        guard !hasRequestedNotifications else {
+            completion()
+            return
+        }
+        hasRequestedNotifications = true
+        
+        // Request authorization for alerts, badges, and sounds
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
+            if granted {
+                AppLogger.shared.log("Push notifications authorized for daily alerts.")
+                // Register with APNs on the main thread if needed for remote tokens
+                DispatchQueue.main.async {
+                    UIApplication.shared.registerForRemoteNotifications()
+                }
+            } else if let error = error {
+                AppLogger.shared.log("Notification authorization error: \(error.localizedDescription)")
+            } else {
+                AppLogger.shared.log("Notification authorization denied.")
+            }
+            
+            // Proceed to the ATT request prompt after handling notifications
+            completion()
+        }
     }
     
     private func requestATT() {
