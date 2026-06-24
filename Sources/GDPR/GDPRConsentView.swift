@@ -29,7 +29,8 @@ struct GDPRConsentView: View {
                     .foregroundColor(.secondary)
                     .padding(.horizontal)
 
-                VStack(alignment: .leading, spacing: 16) {\n                    Toggle("Analytics", isOn: $analyticsConsent)
+                VStack(alignment: .leading, spacing: 16) {
+                    Toggle("Analytics", isOn: $analyticsConsent)
                     Text("Help us improve the app by sharing anonymous usage data.")
                         .font(.caption)
                         .foregroundColor(.secondary)
