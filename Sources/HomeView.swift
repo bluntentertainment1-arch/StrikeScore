@@ -36,92 +36,98 @@ struct HomeView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                
-                // 1. Horizontal Date Picker Slider
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 10) {
-                        ForEach(-3...7, id: \.self) { day in
-                            DateBubbleView(day: day, isSelected: selectedDate == day) {
-                                selectedDate = day
-                            }
-                        }
-                    }
-                    .padding(.horizontal)
-                }
-                
-                // 2. Latest Results Carousel
-                if !finishedResultsMatches.isEmpty && searchText.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "trophy.fill")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(.orange)
-                            Text("LATEST RESULTS")
-                                .font(.system(size: 11, weight: .black))
-                                .foregroundColor(.secondary)
-                                .tracking(0.5)
-                        }
-                        .padding(.horizontal)
-                        
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 10) {
-                                ForEach(finishedResultsMatches) { match in
-                                    Button(action: { selectedMatch = match }) {
-                                        HomeResultsCarouselCard(match: match)
-                                    }
-                                    .buttonStyle(PlainButtonStyle())
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 16) {
+                    
+                    // 1. Horizontal Date Picker Slider
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 10) {
+                            ForEach(-3...7, id: \.self) { day in
+                                DateBubbleView(day: day, isSelected: selectedDate == day) {
+                                    selectedDate = day
                                 }
                             }
+                        }
+                        .padding(.horizontal)
+                    }
+                    
+                    // 2. Latest Results Carousel
+                    if !finishedResultsMatches.isEmpty && searchText.isEmpty {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "trophy.fill")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(.orange)
+                                Text("LATEST RESULTS")
+                                    .font(.system(size: 11, weight: .black))
+                                    .foregroundColor(.secondary)
+                                    .tracking(0.5)
+                            }
                             .padding(.horizontal)
-                            .padding(.bottom, 2)
+                            
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 10) {
+                                    ForEach(finishedResultsMatches) { match in
+                                        Button(action: { selectedMatch = match }) {
+                                            HomeResultsCarouselCard(match: match)
+                                        }
+                                        .buttonStyle(PlainButtonStyle())
+                                    }
+                                }
+                                .padding(.horizontal)
+                                .padding(.bottom, 2)
+                            }
                         }
                     }
-                }
-                
-                // 3. Compact Main Fixtures Feed Section
-                VStack(alignment: .leading, spacing: 10) {
-                    Text(searchText.isEmpty ? "Fixtures Feed" : "Search Results")
-                        .font(.system(size: 16, weight: .bold))
-                        .padding(.horizontal)
                     
-                    if filteredFixturesFeed.isEmpty {
-                        VStack(spacing: 8) {
-                            Image(systemName: "sportscourt")
-                                .font(.title3)
-                                .foregroundColor(.secondary)
-                            Text("No fixtures scheduled for this day")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 30)
-                    } else {
-                        LazyVStack(spacing: 10) {
-                            ForEach(filteredFixturesFeed) { match in
-                                MatchCardView(match: match, onTap: {
-                                    selectedMatch = match
-                                })
-                                .padding(.horizontal)
+                    // 3. Compact Main Fixtures Feed Section
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(searchText.isEmpty ? "Fixtures Feed" : "Search Results")
+                            .font(.system(size: 16, weight: .bold))
+                            .padding(.horizontal)
+                        
+                        if filteredFixturesFeed.isEmpty {
+                            VStack(spacing: 8) {
+                                Image(systemName: "sportscourt")
+                                    .font(.title3)
+                                    .foregroundColor(.secondary)
+                                Text("No fixtures scheduled for this day")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 30)
+                        } else {
+                            LazyVStack(spacing: 10) {
+                                ForEach(filteredFixturesFeed) { match in
+                                    MatchCardView(match: match, onTap: {
+                                        selectedMatch = match
+                                    })
+                                    .padding(.horizontal)
+                                }
                             }
                         }
                     }
                 }
+                .padding(.vertical, 12)
             }
-            .padding(.vertical, 12)
-        }
-        .navigationTitle("StrikeScore")
-        .searchable(text: $searchText, prompt: "Search teams...")
-        .sheet(item: $selectedMatch) { match in
-            FeaturedMatchDetailView(match: match)
-        }
-        .refreshable {
-            await viewModel.loadCMSData()
+            .navigationTitle("StrikeScore")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .padding(.top, 44) // ✅ Structural clearing space ensures items load clear of the floating menu button
+            .searchable(text: $searchText, prompt: "Search teams...")
+            .sheet(item: $selectedMatch) { match in
+                FeaturedMatchDetailView(match: match)
+            }
+            .refreshable {
+                await viewModel.loadCMSData()
+            }
         }
     }
 }
 
+// Re-included exactly as specified in your layout scope
 struct HomeResultsCarouselCard: View {
     let match: FeaturedMatch
     
@@ -182,6 +188,7 @@ struct HomeResultsCarouselCard: View {
     }
 }
 
+// Re-included exactly as specified in your layout scope
 struct DateBubbleView: View {
     let day: Int
     let isSelected: Bool
