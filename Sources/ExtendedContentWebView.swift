@@ -1,7 +1,6 @@
 import SwiftUI
 import WebKit
 
-/// Persistent view engine storage to prevent page resets on orientation changes
 class WebContentStorage: ObservableObject {
     var webView: WKWebView?
     var lastLoadedURL: URL?
@@ -14,26 +13,38 @@ struct ExtendedContentWebView: View {
     @State private var canGoBack = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Top Navigation Control Bar adapted for full-screen theater immersion
+        ZStack(alignment: .top) {
+            // Re-usable persistent rendering web core expanding across the entire screen layout boundaries
+            SecureWebEngineRepresentable(url: url, storage: storage, canGoBack: $canGoBack)
+                .ignoresSafeArea()
+            
+            // Floating Control overlay layout bar structured to clear device notches safely
             HStack {
                 Button(action: { 
                     storage.webView?.goBack() 
                 }) {
                     HStack(spacing: 4) {
                         Image(systemName: "chevron.left")
-                            .font(.system(size: 16, weight: .bold))
+                            .font(.system(size: 14, weight: .bold))
                         Text("Back")
                     }
-                    .foregroundColor(canGoBack ? .green : .secondary)
+                    .foregroundColor(canGoBack ? .green : .white.opacity(0.4))
                 }
                 .disabled(!canGoBack)
+                .padding(.vertical, 6)
+                .padding(.horizontal, 12)
+                .background(Color.black.opacity(0.6))
+                .cornerRadius(8)
                 
                 Spacer()
                 
                 Text("Theater Mode")
-                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .font(.system(size: 13, weight: .bold, design: .rounded))
                     .foregroundColor(.white.opacity(0.8))
+                    .padding(.vertical, 4)
+                    .padding(.horizontal, 10)
+                    .background(Color.black.opacity(0.4))
+                    .cornerRadius(6)
                 
                 Spacer()
                 
@@ -45,20 +56,16 @@ struct ExtendedContentWebView: View {
                         .fontWeight(.bold)
                         .foregroundColor(.green)
                 }
+                .padding(.vertical, 6)
+                .padding(.horizontal, 12)
+                .background(Color.black.opacity(0.6))
+                .cornerRadius(8)
             }
-            .padding(.horizontal)
-            .padding(.vertical, 10)
-            .background(Color.black) // Dark bar background to blend with movie style frames
-            
-            Divider()
-                .background(Color.white.opacity(0.15))
-            
-            // Re-usable persistent rendering core
-            SecureWebEngineRepresentable(url: url, storage: storage, canGoBack: $canGoBack)
-                .ignoresSafeArea()
+            .padding(.horizontal, 24)
+            .padding(.top, 12) // Clears physical device hardware cameras and dynamic island cuts
         }
-        .background(Color.black) // High contrast base layer prevents light bleed lines
-        .toolbar(.hidden, for: .navigationBar) // Strip native navigation wrappers if pushed onto stack
+        .background(Color.black)
+        .toolbar(.hidden, for: .navigationBar)
         .onAppear {
             forceLandscapeTheaterOrientation()
         }
@@ -66,8 +73,6 @@ struct ExtendedContentWebView: View {
             restoreStandardDeviceOrientation()
         }
     }
-    
-    // --- Dynamic Orientation Controls ---
     
     private func forceLandscapeTheaterOrientation() {
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene else { return }
@@ -98,18 +103,13 @@ struct SecureWebEngineRepresentable: UIViewRepresentable {
     @Binding var canGoBack: Bool
     
     func makeUIView(context: Context) -> WKWebView {
-        // ✅ CRITICAL FIX: If instance already exists, return it directly to preserve current player execution state during layout rotation loops
         if let existingView = storage.webView, storage.lastLoadedURL == url {
             return existingView
         }
         
         let configuration = WKWebViewConfiguration()
-        
-        // Inline configuration handles video maximization gracefully, enabling HTML5 theater mode
         configuration.allowsInlineMediaPlayback = true
         configuration.mediaTypesRequiringUserActionForPlayback = []
-        
-        // Optimizes media delivery behavior to allow fullscreen expansion triggers
         configuration.preferences.setValue(true, forKey: "developerExtrasEnabled")
         
         let webView = WKWebView(frame: .zero, configuration: configuration)
@@ -119,7 +119,6 @@ struct SecureWebEngineRepresentable: UIViewRepresentable {
         webView.backgroundColor = .black
         webView.isOpaque = false
         
-        // Store instances securely inside the persistent reference container
         storage.webView = webView
         storage.lastLoadedURL = url
         
@@ -127,9 +126,7 @@ struct SecureWebEngineRepresentable: UIViewRepresentable {
         return webView
     }
     
-    func updateUIView(_ uiView: WKWebView, context: Context) {
-        // Layout orientation mutations trigger updating cycles safely here without refreshing target loads
-    }
+    func updateUIView(_ uiView: WKWebView, context: Context) {}
     
     func makeCoordinator() -> Coordinator { 
         Coordinator(self) 
