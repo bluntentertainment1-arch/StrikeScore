@@ -9,10 +9,10 @@ struct FixturesView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // Search Field Container 
                 SearchBarContainer(text: $scheduleSearchText, placeholder: "Search teams, leagues, dates...")
                     .padding(.horizontal)
                     .padding(.top, 8)
+                    .padding(.bottom, 8)
                 
                 ScrollView {
                     VStack(spacing: 12) {
@@ -32,6 +32,7 @@ struct FixturesView: View {
                                     match: match,
                                     isFavorited: favoritesManager.isFavorited(match.id)
                                 ) {
+                                    dismissKeyboard() // Dismisses keyboard safely on item selection
                                     selectedMatch = match
                                 } onFavorite: {
                                     favoritesManager.toggleFavorite(match.id)
@@ -43,12 +44,22 @@ struct FixturesView: View {
                     .padding(.vertical)
                     .padding(.bottom, 85)
                 }
+                // Dismisses the keyboard when scrolling or dragging through results
+                .gesture(
+                    DragGesture().onChanged { _ in
+                        dismissKeyboard()
+                    }
+                )
             }
             .navigationTitle("Schedule")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.visible, for: .navigationBar)
             .sheet(item: $selectedMatch) { match in
                 FeaturedMatchDetailView(match: match)
             }
+        }
+        .onTapGesture {
+            dismissKeyboard() // Dismisses active tracking keyboard states when tapping layout empty spaces
         }
     }
 
@@ -72,9 +83,12 @@ struct FixturesView: View {
             }
         }
     }
+
+    private func dismissKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
 }
 
-// Reusable High-Contrast Structural Search Bar component 
 struct SearchBarContainer: View {
     @Binding var text: String
     var placeholder: String
@@ -102,7 +116,6 @@ struct SearchBarContainer: View {
     }
 }
 
-// ✅ FIXED: Restored FixtureCard definition here to resolve scope compiler errors
 struct FixtureCard: View {
     let match: FeaturedMatch
     let isFavorited: Bool
