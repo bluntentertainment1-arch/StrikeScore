@@ -16,15 +16,15 @@ struct PrivacyPolicyView: View {
                     Group {
                         policySection(title: "1. Introduction", content: "StrikeScore (\"we,\" \"our,\" or \"us\") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our mobile application.")
 
-                        policySection(title: "2. Information We Collect", content: "We may collect information about you in various ways, including: Usage Data (how you interact with the app), Device Information (device type, OS version), and Advertising Data (for personalized ads via Google AdMob).")
+                        policySection(title: "2. Information We Collect", content: "We may collect information about you in various ways, including: Usage Data (how you interact with the app), Device Information (device type, OS version), and Tracking Data (for usage analytics and personalized ads via third-party SDKs).")
 
-                        policySection(title: "3. How We Use Your Information", content: "We use the information we collect to: Provide and maintain the app, improve user experience, serve personalized advertisements, analyze usage patterns, and comply with legal obligations.")
+                        policySection(title: "3. How We Use Your Information", content: "We use the information we collect to: Provide and maintain the app, improve user experience, monitor app stability, analyze usage patterns, serve personalized advertisements, and comply with legal obligations.")
 
-                        policySection(title: "4. Third-Party Services", content: "We use third-party services including: Google AdMob (advertising), football-data.org (sports data), and Google Sheets (content management). These services may collect information according to their own privacy policies.")
+                        policySection(title: "4. Third-Party Services", content: "We use third-party services including: Google Analytics for Firebase (to track user engagement and app performance metrics), Google AdMob (advertising), football-data.org (sports data), and Google Sheets (content management). These services may collect information according to their own privacy policies.")
 
                         policySection(title: "5. Data Security", content: "We implement appropriate technical and organizational measures to protect your personal data against unauthorized access, alteration, disclosure, or destruction.")
 
-                        policySection(title: "6. Your Rights", content: "Depending on your location, you may have rights to: Access your data, correct inaccuracies, request deletion, opt out of personalized ads, and lodge complaints with supervisory authorities.")
+                        policySection(title: "6. Your Rights", content: "Depending on your location, you may have rights to: Access your data, correct inaccuracies, request deletion, opt out of personalized analytics or ads, and lodge complaints with supervisory authorities.")
 
                         policySection(title: "7. Children's Privacy", content: "Our app is not intended for children under 13. We do not knowingly collect personal information from children under 13.")
 
