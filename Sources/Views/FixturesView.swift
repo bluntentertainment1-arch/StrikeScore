@@ -1,161 +1,104 @@
 import SwiftUI
 
 struct FixturesView: View {
-    // ✅ FIXED: Now reads from shared EnvironmentObject layout engine
     @EnvironmentObject var viewModel: MatchesViewModel
     @StateObject private var favoritesManager = FavoritesManager.shared
     @State private var selectedMatch: FeaturedMatch? = nil
-
-    // Filters strictly for "SCHEDULED" entries and groups them cleanly by Competition
-    private var groupedFixtures: [(competition: String, matches: [FeaturedMatch])] {
-        let scheduledMatches = viewModel.featuredMatches.filter { match in
-            match.status.uppercased() == "SCHEDULED"
-        }
-        let dictionary = Dictionary(grouping: scheduledMatches, by: { $0.competition })
-        return dictionary.map { (competition: $0.key, matches: $0.value) }
-            .sorted { $0.competition < $1.competition }
-    }
+    @State private var scheduleSearchText = ""
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 16) {
-                    if groupedFixtures.isEmpty {
-                        VStack(spacing: 16) {
-                            Image(systemName: "calendar")
-                                .font(.system(size: 50))
-                                .foregroundColor(.gray)
-                            Text("No upcoming scheduled fixtures")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(.top, 100)
-                    } else {
-                        LazyVStack(alignment: .leading, spacing: 14, pinnedViews: [.sectionHeaders]) {
-                            ForEach(groupedFixtures, id: \.competition) { section in
-                                Section(header: sectionHeaderView(section.competition)) {
-                                    ForEach(section.matches) { match in
-                                        FixtureCard(
-                                            match: match,
-                                            isFavorited: favoritesManager.isFavorited(match.id)
-                                        ) {
-                                            selectedMatch = match
-                                        } onFavorite: {
-                                            favoritesManager.toggleFavorite(match.id)
-                                        }
-                                        .padding(.horizontal)
-                                    }
+            VStack(spacing: 0) {
+                // Search Field Container 
+                SearchBarContainer(text: $scheduleSearchText, placeholder: "Search teams, leagues, dates...")
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+                
+                ScrollView {
+                    VStack(spacing: 12) {
+                        if filteredUpcomingMatches.isEmpty {
+                            VStack(spacing: 16) {
+                                Image(systemName: "calendar")
+                                    .font(.system(size: 44))
+                                    .foregroundColor(.secondary)
+                                Text("No matching schedules found")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.top, 80)
+                        } else {
+                            ForEach(filteredUpcomingMatches) { match in
+                                FixtureCard(
+                                    match: match,
+                                    isFavorited: favoritesManager.isFavorited(match.id)
+                                ) {
+                                    selectedMatch = match
+                                } onFavorite: {
+                                    favoritesManager.toggleFavorite(match.id)
                                 }
+                                .padding(.horizontal)
                             }
                         }
                     }
+                    .padding(.vertical)
+                    // High-contrast spacing block ensures content is not hidden by the bottom tab row
+                    .padding(.bottom, 85)
                 }
-                .padding(.vertical)
             }
             .navigationTitle("Schedule")
             .navigationBarTitleDisplayMode(.inline)
-            // Note: Data loading task has been removed since app-level orchestration covers preloading
             .sheet(item: $selectedMatch) { match in
                 FeaturedMatchDetailView(match: match)
             }
         }
     }
 
-    private func sectionHeaderView(_ title: String) -> some View {
-        Text(title.uppercased())
-            .font(.system(size: 11, weight: .black))
-            .foregroundColor(.secondary)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(.systemGroupedBackground))
+    private var filteredUpcomingMatches: [FeaturedMatch] {
+        let upcoming = viewModel.featuredMatches.filter { 
+            !$0.isLive && 
+            $0.status.uppercased() != "LIVE" && 
+            $0.status.uppercased() != "IN_PLAY" && 
+            $0.status.uppercased() != "FINISHED" 
+        }
+        
+        if scheduleSearchText.isEmpty {
+            return upcoming
+        } else {
+            let query = scheduleSearchText.lowercased()
+            return upcoming.filter { match in
+                match.homeTeam.lowercased().contains(query) ||
+                match.awayTeam.lowercased().contains(query) ||
+                match.competition.lowercased().contains(query) ||
+                match.matchDate.lowercased().contains(query)
+            }
+        }
     }
 }
 
-struct FixtureCard: View {
-    let match: FeaturedMatch
-    let isFavorited: Bool
-    let onTap: () -> Void
-    let onFavorite: () -> Void
+// Reusable High-Contrast Structural Search Bar component 
+struct SearchBarContainer: View {
+    @Binding var text: String
+    var placeholder: String
 
     var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: 12) {
-                // Time & Status Column
-                VStack(alignment: .center, spacing: 4) {
-                    Text(match.matchTime)
-                        .font(.system(size: 13, weight: .bold, design: .rounded))
-                        .foregroundColor(.primary)
-                    Text(match.matchDate)
-                        .font(.system(size: 9, weight: .medium))
+        HStack {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(.secondary)
+            
+            TextField("", text: $text, prompt: Text(placeholder).foregroundColor(.gray.opacity(0.8)))
+                .foregroundColor(.primary)
+                .autocorrectionDisabled()
+            
+            if !text.isEmpty {
+                Button(action: { text = "" }) {
+                    Image(systemName: "xmark.circle.fill")
                         .foregroundColor(.secondary)
                 }
-                .frame(width: 65)
-
-                Divider()
-                    .frame(height: 35)
-
-                // Teams Presentation Column
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 8) {
-                        TeamLogoView(
-                            teamName: match.homeTeam,
-                            localSpreadsheetURL: match.homeFlagURL,
-                            fallbackColor: match.homeFallbackColor,
-                            initials: match.getTeamInitials(from: match.homeTeam),
-                            size: 18
-                        )
-                        Text(match.homeTeam)
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(.primary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.85)
-                    }
-
-                    HStack(spacing: 8) {
-                        TeamLogoView(
-                            teamName: match.awayTeam,
-                            localSpreadsheetURL: match.awayFlagURL,
-                            fallbackColor: match.awayFallbackColor,
-                            initials: match.getTeamInitials(from: match.awayTeam),
-                            size: 18
-                        )
-                        Text(match.awayTeam)
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(.primary)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.85)
-                    }
-                }
-
-                Spacer()
-
-                // Metadata Control Tag & Favorites
-                VStack(alignment: .trailing, spacing: 6) {
-                    if !match.group.isEmpty {
-                        Text(match.group)
-                            .font(.system(size: 9, weight: .bold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(Color.orange)
-                            .cornerRadius(6)
-                    }
-
-                    Button(action: onFavorite) {
-                        Image(systemName: isFavorited ? "heart.fill" : "heart")
-                            .font(.system(size: 15))
-                            .foregroundColor(isFavorited ? .red : .gray.opacity(0.7))
-                            .padding(4)
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                }
             }
-            .padding(.vertical, 10)
-            .padding(.horizontal, 12)
-            .background(Color(.systemGray6))
-            .cornerRadius(12)
         }
-        .buttonStyle(PlainButtonStyle())
+        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
+        .background(Color(.systemGray5)) // Enhanced contrast block element background
+        .cornerRadius(10)
     }
 }
