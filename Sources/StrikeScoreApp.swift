@@ -21,7 +21,6 @@ struct StrikeScoreApp: App {
     
     @StateObject private var viewModel = MatchesViewModel()
     @State private var currentPhase: AppFlowState.ViewPhase = .initialSplash
-    
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
 
     var body: some Scene {
@@ -29,45 +28,29 @@ struct StrikeScoreApp: App {
             ZStack {
                 switch currentPhase {
                 case .initialSplash:
-                    Color(.systemBackground)
-                        .ignoresSafeArea()
-                        .onAppear {
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                                withAnimation(.easeInOut(duration: 0.4)) {
-                                    if !hasSeenOnboarding {
-                                        currentPhase = .onboardingFlow
-                                    } else if !GDPRConsentManager.shared.hasConsent {
-                                        currentPhase = .gdprConsentCheck
-                                    } else {
-                                        currentPhase = .requestPermissions
-                                    }
-                                }
+                    SplashScreenView(onAnimationComplete: {
+                        withAnimation(.easeInOut(duration: 0.4)) {
+                            if !hasSeenOnboarding {
+                                currentPhase = .onboardingFlow
+                            } else if !GDPRConsentManager.shared.hasConsent {
+                                currentPhase = .gdprConsentCheck
+                            } else {
+                                currentPhase = .requestPermissions
                             }
                         }
+                    })
+                    .transition(.opacity)
                         
                 case .onboardingFlow:
-                    ZStack {
-                        Color.green.ignoresSafeArea()
-                        VStack(spacing: 20) {
-                            Text("Welcome to StrikeScore")
-                                .font(.title.bold())
-                                .foregroundColor(.white)
-                            Button("Get Started") {
-                                hasSeenOnboarding = true
-                                withAnimation(.easeInOut(duration: 0.4)) {
-                                    if !GDPRConsentManager.shared.hasConsent {
-                                        currentPhase = .gdprConsentCheck
-                                    } else {
-                                        currentPhase = .requestPermissions
-                                    }
-                                }
+                    OnboardingView(onOnboardingComplete: {
+                        withAnimation(.easeInOut(duration: 0.4)) {
+                            if !GDPRConsentManager.shared.hasConsent {
+                                currentPhase = .gdprConsentCheck
+                            } else {
+                                currentPhase = .requestPermissions
                             }
-                            .padding()
-                            .background(Color.white)
-                            .foregroundColor(.green)
-                            .cornerRadius(10)
                         }
-                    }
+                    })
                     .transition(.opacity)
                     
                 case .gdprConsentCheck:
@@ -141,7 +124,6 @@ struct StrikeScoreApp: App {
     }
 }
 
-// ✅ FIXED: Explicit declaration placement inside file scope context
 struct DataLoadingProgressView: View {
     var body: some View {
         ZStack {
