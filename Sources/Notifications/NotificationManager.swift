@@ -3,61 +3,33 @@ import UserNotifications
 
 class NotificationManager {
     static let shared = NotificationManager()
-    
-    private init() {}
-    
-    func requestAuthorization() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
-            if granted {
-                print("Notification permission approved.")
-            } else if let error = error {
-                print("Authorization failure sequence: \(error.localizedDescription)")
-            }
+
+    func requestPermission() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
+            AppLogger.shared.log("Notification permission: \(granted)")
         }
     }
-    
-    func scheduleDailyEditorialNotifications(articles: [EditorialItem]) {
-        print("Scheduling reminders for \(articles.count) news updates.")
-    }
-    
-    func scheduleDailyReminders(for matches: [Match]) {
-        let center = UNUserNotificationCenter.current()
-        center.removeAllPendingNotificationRequests() 
-        
+
+    // Accepting Match models directly so you do not need to manually parse strings upstream
+    func scheduleMatchReminder(for match: Match) {
         let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd HH:mm"
-        formatter.timeZone = TimeZone(abbreviation: "GMT")
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
+        formatter.timeZone = TimeZone(identifier: "UTC")
         
-        let calendar = Calendar.current
-        let todayComponents = calendar.dateComponents([.year, .month, .day], from: Date())
-        
-        // ✅ FIXED: Properties changed back to matchDate and matchTime to match the model target
-        let activeDailyMatches = matches.filter { match in
-            guard let matchDate = formatter.date(from: "\(match.matchDate) \(match.matchTime)") else { return false }
-            let matchComponents = calendar.dateComponents([.year, .month, .day], from: matchDate)
-            return matchComponents.year == todayComponents.year &&
-                   matchComponents.month == todayComponents.month &&
-                   matchComponents.day == todayComponents.day
-        }
-        
-        guard !activeDailyMatches.isEmpty else { return }
-        
+        // Extract a valid system Date sequence out of the model string property
+        guard let matchDate = formatter.date(from: match.utcDate) else { return }
+
         let content = UNMutableNotificationContent()
-        content.title = "⚽ Trending Matches Today"
-        content.body = "Don't miss out! Today features \(activeDailyMatches.count) updates waiting on your schedule."
+        content.title = "Match Starting Soon!"
+        content.body = "\(match.homeTeam.name) vs \(match.awayTeam.name) kicks off in 15 minutes"
         content.sound = .default
-        
-        var triggerComponents = DateComponents()
-        triggerComponents.hour = 9
-        triggerComponents.minute = 0
-        
-        let trigger = UNCalendarNotificationTrigger(dateMatching: triggerComponents, repeats: true)
-        let request = UNNotificationRequest(identifier: "daily_match_summary", content: content, trigger: trigger)
-        
-        center.add(request) { error in
-            if let error = error {
-                print("Failed to schedule daily summary: \(error.localizedDescription)")
-            }
-        }
+
+        // Schedules local notifications exactly 15 minutes prior to game kick-off
+        let triggerDate = Calendar.current.date(byAdding: .minute, value: -15, to: matchDate)!
+        let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: triggerDate)
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+
+        let request = UNNotificationRequest(identifier: "match-\(match.id)", content: content, trigger: trigger)
+        UNUserNotificationCenter.current().add(request)
     }
 }
