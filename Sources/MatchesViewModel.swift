@@ -25,6 +25,10 @@ class MatchesViewModel: ObservableObject {
 
             let (featured, editorial) = try await (featuredTask, editorialTask)
             
+            // ✅ FIXED: Clear the local model states entirely first to remove deleted Excel items immediately
+            self.featuredMatches.removeAll()
+            self.editorialItems.removeAll()
+            
             // Organized scheduled entries sorted strictly according to scheduling dates/times
             self.featuredMatches = featured.sorted { (m1: FeaturedMatch, m2: FeaturedMatch) -> Bool in
                 if m1.matchDate != m2.matchDate {
@@ -34,7 +38,7 @@ class MatchesViewModel: ObservableObject {
             }
             self.editorialItems = editorial
 
-            // ✅ FIXED: Automatically links fresh download targets straight to the notification router
+            // Automatically links fresh download targets straight to the notification router
             NotificationManager.shared.scheduleDailyEditorialNotifications(articles: editorial)
 
             CacheService.shared.save(self.featuredMatches, forKey: "cachedFeatured")
@@ -60,7 +64,7 @@ class MatchesViewModel: ObservableObject {
         if let cached: [EditorialItem] = CacheService.shared.load([EditorialItem].self, forKey: "cachedEditorial") {
             self.editorialItems = cached
             
-            // ✅ FIXED: Assures push timelines execute safely even when reading from device disk space offline
+            // Assures push timelines execute safely even when reading from device disk space offline
             NotificationManager.shared.scheduleDailyEditorialNotifications(articles: cached)
         }
     }
