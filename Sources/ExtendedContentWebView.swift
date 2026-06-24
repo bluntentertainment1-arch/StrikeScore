@@ -1,20 +1,29 @@
 import SwiftUI
 import WebKit
 
+// State coordinator to persist the view reference across rotation state transitions
+class WebContentStorage: ObservableObject {
+    var webView: WKWebView?
+}
+
 struct ExtendedContentWebView: View {
     let url: URL
     @Environment(\.dismiss) private var dismiss
     
-    // Core web view state instance to support the native back button
-    @State private var webView: WKWebView? = nil
+    @StateObject private var storage = WebContentStorage()
     @State private var canGoBack = false
 
     var body: some View {
         VStack(spacing: 0) {
-            // 1. Sleek Custom Header Bar with ONLY Back and Close Actions
+            // Safe Area Status Bar Shield Mask
+            Color(.systemBackground)
+                .frame(height: safeAreaTopInset)
+                .ignoresSafeArea(edges: .top)
+            
+            // Sleek Custom Header Bar
             HStack {
                 Button(action: {
-                    webView?.goBack()
+                    storage.webView?.goBack()
                 }) {
                     HStack(spacing: 4) {
                         Image(systemName: "chevron.left")
@@ -27,8 +36,7 @@ struct ExtendedContentWebView: View {
                 
                 Spacer()
                 
-                // Centered Minimalist Info Label (No website URL visible)
-                Text("Match Content View")
+                Text("Content View")
                     .font(.system(size: 15, weight: .bold, design: .rounded))
                     .foregroundColor(.primary)
                 
@@ -46,17 +54,23 @@ struct ExtendedContentWebView: View {
             
             Divider()
             
-            // 2. The Custom Anti-Popup Secure Browser Core
-            SecureWebEngineRepresentable(url: url, webViewRef: $webView, canGoBack: $canGoBack)
+            SecureWebEngineRepresentable(url: url, storage: storage, canGoBack: $canGoBack)
                 .ignoresSafeArea(edges: .bottom)
         }
+        .background(Color(.systemBackground))
+    }
+    
+    // Calculates the device specific top safe area padding layout dynamically
+    private var safeAreaTopInset: CGFloat {
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let topInset = windowScene.windows.first?.safeAreaInsets.top else { return 20 }
+        return topInset
     }
 }
 
-// MARK: - Safe Web Kit Engine Infrastructure
 struct SecureWebEngineRepresentable: UIViewRepresentable {
     let url: URL
-    @Binding var webViewRef: WKWebView?
+    let storage: WebContentStorage
     @Binding var canGoBack: Bool
     
     func makeCoordinator() -> Coordinator {
@@ -64,23 +78,25 @@ struct SecureWebEngineRepresentable: UIViewRepresentable {
     }
     
     func makeUIView(context: Context) -> WKWebView {
+        // If an instance was already built, pass back the exact same reference to prevent reload triggers
+        if let existingView = storage.webView {
+            return existingView
+        }
+        
         let configuration = WKWebViewConfiguration()
         configuration.allowsInlineMediaPlayback = true
         configuration.mediaTypesRequiringUserActionForPlayback = []
         
-        // Optimize for content sizing
         let preferences = WKPreferences()
         preferences.minimumFontSize = 10
         configuration.preferences = preferences
         
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
-        webView.uiDelegate = context.coordinator // Dynamic multi-window interceptor
-        
-        // Strip away standard bouncing mechanics
+        webView.uiDelegate = context.coordinator
         webView.scrollView.bounces = false
         
-        webViewRef = webView
+        storage.webView = webView
         
         let request = URLRequest(url: url)
         webView.load(request)
@@ -96,7 +112,6 @@ struct SecureWebEngineRepresentable: UIViewRepresentable {
             self.parent = parent
         }
         
-        // Monitor item timeline states to unlock/lock back buttons smoothly
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             DispatchQueue.main.async {
                 self.parent.canGoBack = webView.canGoBack
@@ -109,13 +124,9 @@ struct SecureWebEngineRepresentable: UIViewRepresentable {
             }
         }
         
-        // ✅ ANTI-POPUP SHIELD: Destroys any attempts to pop open new tabs, ads, or redirect frames
         func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
-            
-            // If the site tries to launch an ad via a blank target link or popup script, catch it here
             if navigationAction.targetFrame == nil {
-                // Return nil to completely kill the popup script request execution thread
-                return nil
+                return nil // Block external popup request contexts instantly
             }
             return nil
         }
