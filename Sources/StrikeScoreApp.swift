@@ -24,8 +24,8 @@ struct StrikeScoreApp: App {
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
 
     init() {
-        // ✅ FIXED: Modern non-deprecated Google Mobile Ads initialization call
-        GADMobileAds.sharedInstance.start(completionHandler: nil)
+        // ✅ FIXED: Using the clean, non-deprecated Swift naming convention
+        MobileAds.shared.start(completionHandler: nil)
         
         // Request notification permissions early
         NotificationManager.shared.requestPermission()
