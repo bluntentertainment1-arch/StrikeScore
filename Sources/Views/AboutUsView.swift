@@ -5,7 +5,6 @@ struct AboutUsView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 32) {
-                    // App icon placeholder
                     Image(systemName: "sportscourt.fill")
                         .font(.system(size: 80))
                         .foregroundColor(.green)
@@ -33,9 +32,8 @@ struct AboutUsView: View {
 
                     VStack(spacing: 12) {
                         FeatureRow(icon: "bolt.fill", title: "Live Scores", description: "Real-time match updates")
-                        FeatureRow(icon: "tablecells.fill", title: "Standings", description: "League tables and group rankings")
                         FeatureRow(icon: "calendar", title: "Fixtures", description: "Upcoming match schedules")
-                        FeatureRow(icon: "arrow.clockwise", title: "Auto Refresh", description: "Stay updated automatically")
+                        FeatureRow(icon: "checkmark.circle.fill", title: "Results", description: "Past match scores and historical outcomes")
                     }
                     .padding(.horizontal)
 
@@ -63,33 +61,5 @@ struct AboutUsView: View {
             .navigationTitle("About Us")
             .navigationBarTitleDisplayMode(.inline)
         }
-    }
-}
-
-struct FeatureRow: View {
-    let icon: String
-    let title: String
-    let description: String
-
-    var body: some View {
-        HStack(spacing: 16) {
-            Image(systemName: icon)
-                .font(.title2)
-                .foregroundColor(.green)
-                .frame(width: 40)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.headline)
-                Text(description)
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-
-            Spacer()
-        }
-        .padding()
-        .background(Color(.systemGray6))
-        .cornerRadius(12)
     }
 }
