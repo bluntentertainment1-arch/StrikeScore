@@ -1,8 +1,8 @@
 import SwiftUI
 
 struct RewardedAdPromptView: View {
-    @State private var showingAd = false
-    @State private var rewardEarned = false
+    @State private var showingAlert = false
+    @State private var alertMessage = ""
 
     var body: some View {
         VStack(spacing: 20) {
@@ -19,7 +19,12 @@ struct RewardedAdPromptView: View {
                 .foregroundColor(.secondary)
 
             Button(action: {
-                showingAd = true
+                AdMobManager.shared.showRewarded(onRewardEarned: { amount in
+                    alertMessage = "Thank you for your support! You earned \(amount) points."
+                    showingAlert = true
+                }, onClose: {
+                    // Fail safely if ad is closed early or cancelled
+                })
             }) {
                 Label("Watch Video", systemImage: "play.fill")
                     .font(.headline)
@@ -31,5 +36,18 @@ struct RewardedAdPromptView: View {
             }
         }
         .padding()
+        .alert(isPresented: $showingAlert) {
+            Alert(
+                title: Text("Reward Earned"),
+                message: Text(alertMessage),
+                dismissButton: .default(Text("OK"))
+            )
+        }
+    }
+}
+
+struct RewardedAdPromptView_Previews: PreviewProvider {
+    static var previews: some View {
+        RewardedAdPromptView()
     }
 }
