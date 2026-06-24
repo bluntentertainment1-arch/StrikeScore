@@ -13,13 +13,10 @@ class MatchesViewModel: ObservableObject {
         guard !isLoading else { return }
         isLoading = true
         
-        // Simulating the actual async network fetch from your CSV spreadsheet source
         do {
-            // Your existing fetch code goes here...
-            // e.g., let data = try await NetworkManager.shared.fetchData(from: spreadsheetURLString)
-            // parser.parse(data)
+            // Your networking fetch engine runs here...
             
-            // --- AUTO TRIGGER DIGESTS FOR EDITORIAL HEADLINES ON SUCCESSFUL LOAD ---
+            // --- AUTOMATICALLY HOOK COMPLETED HEADLINES TO SYSTEM NOTIFICATIONS ---
             let headlinesList = self.editorialItems.map { $0.title }
             if !headlinesList.isEmpty {
                 NotificationManager.shared.scheduleDailyEditorialDigests(headlines: headlinesList)
@@ -31,35 +28,4 @@ class MatchesViewModel: ObservableObject {
         
         isLoading = false
     }
-}
-
-// MARK: - Core Supporting Data Models
-struct FeaturedMatch: Identifiable, Decodable {
-    let id: Int
-    let homeTeam: String
-    let awayTeam: String
-    let matchDate: String
-    let matchTime: String
-    let status: String
-    let competition: String
-    let group: String
-    let homeFlagURL: String
-    let awayFlagURL: String
-    let homeFallbackColor: String
-    let awayFallbackColor: String
-    let displayScore: String
-    
-    func getTeamInitials(from name: String) -> String {
-        let words = name.components(separatedBy: " ")
-        let initials = words.compactMap { $0.first }.map { String($0) }.joined()
-        return String(initials.prefix(2)).uppercased()
-    }
-}
-
-struct EditorialItem: Identifiable, Decodable {
-    let id: UUID
-    let title: String
-    let description: String
-    let articleURL: String
-    let imageURL: String
 }
