@@ -1,37 +1,75 @@
 import Foundation
-import SwiftUI
+import Combine
 
 @MainActor
 class MatchesViewModel: ObservableObject {
     @Published var featuredMatches: [FeaturedMatch] = []
     @Published var editorialItems: [EditorialItem] = []
-    @Published var isLoading: Bool = false
-    
-    private let spreadsheetURLString = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR6-S8Z4ZfN_Dby3v9M7Lp_B9K9Q3v2U7A1z4XyG8p9H2m5V7n_o_zQ_rA_xG1-p0q8wM2W2P6yLzO/pub?output=csv"
-    
+    @Published var isLoading = false
+    @Published var errorMessage: String?
+
+    private var cmsTimer: Timer?
+
+    // Global arrays filtered automatically for Live layouts safely handling both tags
+    var liveMatches: [FeaturedMatch] {
+        featuredMatches.filter { $0.isLive || $0.status.uppercased() == "LIVE" || $0.status.uppercased() == "IN_PLAY" }
+    }
+
     func loadCMSData() async {
-        guard !isLoading else { return }
         isLoading = true
-        
+        errorMessage = nil
+
         do {
-            // Your custom networking data-engine engine pipeline flows here...
+            async let featuredTask = ExcelCMSService.shared.fetchFeaturedMatches()
+            async let editorialTask = ExcelCMSService.shared.fetchEditorial()
+
+            let (featured, editorial) = try await (featuredTask, editorialTask)
             
-            // --- AUTOMATICALLY HOOK COMPLETED UPDATES TO NOTIFICATION SERVICE ---
+            // Organized scheduled entries sorted strictly according to scheduling dates/times
+            self.featuredMatches = featured.sorted { (m1: FeaturedMatch, m2: FeaturedMatch) -> Bool in
+                if m1.matchDate != m2.matchDate {
+                    return m1.matchDate < m2.matchDate
+                }
+                return m1.matchTime < m2.matchTime
+            }
+            self.editorialItems = editorial
+
+            CacheService.shared.save(self.featuredMatches, forKey: "cachedFeatured")
+            CacheService.shared.save(editorial, forKey: "cachedEditorial")
+
+            AppLogger.shared.log("CMS loaded: \(featured.count) featured sorted, \(editorial.count) editorial")
+            
+            // ✅ INTEGRATED UPDATE: Safely schedule daily notification digests based on fresh content
             NotificationManager.shared.scheduleDailyEditorialDigests(headlines: ["Discover Todays Top Football News & Updates"])
-            
+
         } catch {
-            AppLogger.shared.error("Failed loading spreadsheet data: \(error.localizedDescription)")
+            AppLogger.shared.error("CMS load error: \(error.localizedDescription)")
+            loadCMSFromCache()
         }
-        
+
         isLoading = false
     }
-    
-    // ✅ FIXES LiveMatchesView compiler errors cleanly:
-    func startAutoRefresh() {
-        AppLogger.shared.log("Live match polling loop initiated safely.")
+
+    private func loadCMSFromCache() {
+        if let cached: [FeaturedMatch] = CacheService.shared.load([FeaturedMatch].self, forKey: "cachedFeatured") {
+            self.featuredMatches = cached.sorted { 
+                if $0.matchDate != $1.matchDate { return $0.matchDate < $1.matchDate }
+                return $0.matchTime < $1.matchTime
+            }
+        }
+        if let cached: [EditorialItem] = CacheService.shared.load([EditorialItem].self, forKey: "cachedEditorial") {
+            self.editorialItems = cached
+        }
     }
-    
+
+    func startAutoRefresh() {
+        cmsTimer = Timer.scheduledTimer(withTimeInterval: AppConfig.excelRefreshInterval, repeats: true) { _ in
+            Task { await self.loadCMSData() }
+        }
+    }
+
     func stopAutoRefresh() {
-        AppLogger.shared.log("Live match polling loop suspended safely.")
+        cmsTimer?.invalidate()
+        cmsTimer = nil
     }
 }
