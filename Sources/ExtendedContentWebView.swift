@@ -1,7 +1,7 @@
 import SwiftUI
 import WebKit
 
-struct CleanStreamWebView: View {
+struct ExtendedContentWebView: View {
     let url: URL
     @Environment(\.dismiss) private var dismiss
     
@@ -27,8 +27,8 @@ struct CleanStreamWebView: View {
                 
                 Spacer()
                 
-                // Centered Minimalist Stream Label (No website URL visible)
-                Text("Live Stream Player")
+                // Centered Minimalist Info Label (No website URL visible)
+                Text("Match Content View")
                     .font(.system(size: 15, weight: .bold, design: .rounded))
                     .foregroundColor(.primary)
                 
