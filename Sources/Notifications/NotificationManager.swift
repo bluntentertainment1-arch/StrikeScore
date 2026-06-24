@@ -1,45 +1,68 @@
-import Foundation
 import UserNotifications
 
 class NotificationManager {
     static let shared = NotificationManager()
 
+    private init() {}
+
+    /// Requests explicit push notification permission from the user
     func requestPermission() {
-        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
-            AppLogger.shared.log("Notification permission: \(granted)")
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
+            if let error = error {
+                AppLogger.shared.error("Notification authorization configuration error: \(error.localizedDescription)")
+                return
+            }
+            AppLogger.shared.log("Notification permission state: \(granted)")
         }
     }
 
-    func scheduleMatchReminder(matchId: String, matchTitle: String, date: Date) {
-        let content = UNMutableNotificationContent()
-        content.title = "Match Starting Soon!"
-        content.body = "\(matchTitle) kicks off in 15 minutes"
-        content.sound = .default
+    /// Schedules daily trending headlines at 9am, 3pm, and 8pm using unrepeated items from editorial news
+    /// - Parameter headlines: The raw array of headline strings pulled from your editorial feed
+    func scheduleDailyEditorialDigests(headlines: [String]) {
+        // Clear all old pending queues to prevent stacking overlapping alerts
+        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
 
-        let triggerDate = Calendar.current.date(byAdding: .minute, value: -15, to: date)!
-        let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: triggerDate)
-        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+        guard !headlines.isEmpty else {
+            AppLogger.shared.log("Skipping daily headlines schedule: Editorial content feed is empty.")
+            return
+        }
 
-        let request = UNNotificationRequest(identifier: "match-\(matchId)", content: content, trigger: trigger)
-        UNUserNotificationCenter.current().add(request)
-    }
-
-    // ✅ FIXED: Restored missing trending news & daily editorial push routing method
-    func scheduleDailyEditorialNotifications(articles: [EditorialItem]) {
-        AppLogger.shared.log("Scheduling notification updates for \(articles.count) editorial news articles.")
+        // Define your target military timeline slots (9:00, 15:00, 20:00)
+        let deliveryHours = [9, 15, 20]
         
-        let content = UNMutableNotificationContent()
-        content.title = "Trending Sports News"
-        content.body = "Check out the latest trending match updates and analysis!"
-        content.sound = .default
-
-        // Fires a daily notification reminder
-        var components = DateComponents()
-        components.hour = 10 // 10:00 AM
-        components.minute = 0
-        
-        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
-        let request = UNNotificationRequest(identifier: "daily-editorial-news", content: content, trigger: trigger)
-        UNUserNotificationCenter.current().add(request)
+        // Loop through the hours and assign a unique headline index matching the slot
+        for (index, hour) in deliveryHours.enumerated() {
+            // Safe array bounds fallback: if there are fewer headlines than slots, cycle back using the modulo operator
+            let headlineIndex = index % headlines.count
+            let chosenHeadline = headlines[headlineIndex]
+            
+            // Build the date matching components for the daily trigger
+            var dateComponents = DateComponents()
+            dateComponents.calendar = Calendar.current
+            dateComponents.hour = hour
+            dateComponents.minute = 0
+            
+            // Configure the alert visual structure
+            let content = UNMutableNotificationContent()
+            content.title = "🔥 Trending Football News"
+            content.body = chosenHeadline
+            content.sound = .default
+            
+            // Setting repeats to true means it will fire at this hour every single day automatically
+            let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
+            
+            // Establish a unique tracking identifier for this specific time block
+            let requestIdentifier = "editorial-slot-\(hour)h"
+            let request = UNNotificationRequest(identifier: requestIdentifier, content: content, trigger: trigger)
+            
+            // Register with the iOS system core
+            UNUserNotificationCenter.current().add(request) { error in
+                if let error = error {
+                    AppLogger.shared.error("Failed scheduling news alert for slot \(hour):00: \(error.localizedDescription)")
+                } else {
+                    AppLogger.shared.log("Successfully armed daily news digest for \(hour):00: \"\(chosenHeadline)\"")
+                }
+            }
+        }
     }
 }
