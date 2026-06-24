@@ -1,11 +1,12 @@
 import SwiftUI
 
 struct FixturesView: View {
-    @StateObject private var viewModel = MatchesViewModel()
+    // ✅ FIXED: Now reads from shared EnvironmentObject layout engine
+    @EnvironmentObject var viewModel: MatchesViewModel
     @StateObject private var favoritesManager = FavoritesManager.shared
     @State private var selectedMatch: FeaturedMatch? = nil
 
-    // ✅ FIXED: Filters strictly for "SCHEDULED" entries and groups them cleanly by Competition
+    // Filters strictly for "SCHEDULED" entries and groups them cleanly by Competition
     private var groupedFixtures: [(competition: String, matches: [FeaturedMatch])] {
         let scheduledMatches = viewModel.featuredMatches.filter { match in
             match.status.uppercased() == "SCHEDULED"
@@ -53,9 +54,7 @@ struct FixturesView: View {
             }
             .navigationTitle("Schedule")
             .navigationBarTitleDisplayMode(.inline)
-            .task {
-                await viewModel.loadCMSData()
-            }
+            // Note: Data loading task has been removed since app-level orchestration covers preloading
             .sheet(item: $selectedMatch) { match in
                 FeaturedMatchDetailView(match: match)
             }
@@ -73,7 +72,6 @@ struct FixturesView: View {
     }
 }
 
-// ✅ FULL ORIGINAL COMPONENT: Preserved with all layout and design elements intact
 struct FixtureCard: View {
     let match: FeaturedMatch
     let isFavorited: Bool
