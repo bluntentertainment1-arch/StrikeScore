@@ -122,7 +122,6 @@ struct HomeView: View {
     }
 }
 
-// ✅ FIXED: Re-included component in scope for HomeView compilation
 struct HomeResultsCarouselCard: View {
     let match: FeaturedMatch
     
@@ -183,7 +182,6 @@ struct HomeResultsCarouselCard: View {
     }
 }
 
-// ✅ FIXED: Re-included component in scope for HomeView compilation
 struct DateBubbleView: View {
     let day: Int
     let isSelected: Bool
