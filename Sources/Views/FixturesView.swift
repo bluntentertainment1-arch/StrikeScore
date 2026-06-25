@@ -13,7 +13,7 @@ struct FixturesView: View {
                     .padding(.horizontal)
                     .padding(.top, 8)
                     .padding(.bottom, 8)
-                
+
                 ScrollView {
                     VStack(spacing: 12) {
                         if filteredUpcomingMatches.isEmpty {
@@ -27,17 +27,28 @@ struct FixturesView: View {
                             }
                             .padding(.top, 80)
                         } else {
-                            ForEach(filteredUpcomingMatches) { match in
-                                FixtureCard(
-                                    match: match,
-                                    isFavorited: favoritesManager.isFavorited(match.id)
-                                ) {
-                                    dismissKeyboard() // Dismisses keyboard safely on item selection
-                                    selectedMatch = match
-                                } onFavorite: {
-                                    favoritesManager.toggleFavorite(match.id)
+                            ForEach(Array(filteredUpcomingMatches.enumerated()), id: \.element.id) { index, match in
+                                VStack(spacing: 12) {
+                                    FixtureCard(
+                                        match: match,
+                                        isFavorited: favoritesManager.isFavorited(match.id)
+                                    ) {
+                                        dismissKeyboard()
+                                        handleMatchTap(match: match)
+                                    } onFavorite: {
+                                        favoritesManager.toggleFavorite(match.id)
+                                    }
+                                    .padding(.horizontal)
+
+                                    // Insert banner ad every 3 fixtures
+                                    if (index + 1) % 3 == 0 && index != filteredUpcomingMatches.count - 1 {
+                                        InlineBannerAdView(
+                                            adUnitID: AdMobManager.bannerAdUnitID,
+                                            adSize: .standard
+                                        )
+                                        .padding(.horizontal)
+                                    }
                                 }
-                                .padding(.horizontal)
                             }
                         }
                     }
@@ -59,20 +70,40 @@ struct FixturesView: View {
             }
         }
         .onTapGesture {
-            dismissKeyboard() // Dismisses active tracking keyboard states when tapping layout empty spaces
+            dismissKeyboard()
         }
     }
 
     private var filteredUpcomingMatches: [FeaturedMatch] {
-        let upcoming = viewModel.featuredMatches.filter { 
-            !$0.isLive && 
-            $0.status.uppercased() != "LIVE" && 
-            $0.status.uppercased() != "IN_PLAY" && 
-            $0.status.uppercased() != "FINISHED" 
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let today = Calendar.current.startOfDay(for: Date())
+
+        let upcoming = viewModel.featuredMatches.filter { match in
+            // Exclude live and finished matches
+            guard !match.isLive &&
+                  match.status.uppercased() != "LIVE" &&
+                  match.status.uppercased() != "IN_PLAY" &&
+                  match.status.uppercased() != "FINISHED" &&
+                  match.status.uppercased() != "FT" else {
+                return false
+            }
+
+            // Only include matches from today onwards
+            guard let matchDate = formatter.date(from: match.matchDate) else {
+                return false
+            }
+            let matchDay = Calendar.current.startOfDay(for: matchDate)
+            return matchDay >= today
         }
-        
+
         if scheduleSearchText.isEmpty {
-            return upcoming
+            return upcoming.sorted {
+                if $0.matchDate != $1.matchDate {
+                    return $0.matchDate < $1.matchDate
+                }
+                return $0.matchTime < $1.matchTime
+            }
         } else {
             let query = scheduleSearchText.lowercased()
             return upcoming.filter { match in
@@ -81,6 +112,19 @@ struct FixturesView: View {
                 match.competition.lowercased().contains(query) ||
                 match.matchDate.lowercased().contains(query)
             }
+            .sorted {
+                if $0.matchDate != $1.matchDate {
+                    return $0.matchDate < $1.matchDate
+                }
+                return $0.matchTime < $1.matchTime
+            }
+        }
+    }
+
+    private func handleMatchTap(match: FeaturedMatch) {
+        // Show interstitial on first tap per session, then every 4 minutes
+        AdMobManager.shared.showInterstitialIfAllowed {
+            selectedMatch = match
         }
     }
 
@@ -97,11 +141,11 @@ struct SearchBarContainer: View {
         HStack {
             Image(systemName: "magnifyingglass")
                 .foregroundColor(.secondary)
-            
+
             TextField("", text: $text, prompt: Text(placeholder).foregroundColor(.gray.opacity(0.8)))
                 .foregroundColor(.primary)
                 .autocorrectionDisabled()
-            
+
             if !text.isEmpty {
                 Button(action: { text = "" }) {
                     Image(systemName: "xmark.circle.fill")
@@ -129,14 +173,14 @@ struct FixtureCard: View {
                     Text(match.competition)
                         .font(.caption2.bold())
                         .foregroundColor(.green)
-                    
-                    Text("\(match.matchDate) • \(match.matchTime)")
+
+                    Text("\(match.matchDate) â¢ \(match.matchTime)")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
-                
+
                 Spacer()
-                
+
                 VStack(alignment: .trailing, spacing: 4) {
                     Text(match.homeTeam)
                         .font(.system(size: 14, weight: .bold))
@@ -145,7 +189,7 @@ struct FixtureCard: View {
                         .font(.system(size: 14, weight: .bold))
                         .foregroundColor(.primary)
                 }
-                
+
                 Button(action: onFavorite) {
                     Image(systemName: isFavorited ? "heart.fill" : "heart")
                         .foregroundColor(isFavorited ? .red : .gray)
