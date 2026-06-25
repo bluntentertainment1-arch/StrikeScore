@@ -15,7 +15,7 @@ class ExcelCMSService {
 
         let (data, _) = try await URLSession.shared.data(from: url)
         let csvString = String(data: data, encoding: .utf8) ?? ""
-        
+
         AppLogger.shared.log("Featured CSV raw (first 500 chars): \(String(csvString.prefix(500)))")
 
         return parseFeaturedMatches(csv: csvString)
@@ -28,7 +28,7 @@ class ExcelCMSService {
 
         let (data, _) = try await URLSession.shared.data(from: url)
         let csvString = String(data: data, encoding: .utf8) ?? ""
-        
+
         AppLogger.shared.log("Editorial CSV raw (first 500 chars): \(String(csvString.prefix(500)))")
 
         return parseEditorial(csv: csvString)
@@ -51,7 +51,7 @@ class ExcelCMSService {
             guard !row.isEmpty else { continue }
 
             let columns = parseCSVRow(row)
-            
+
             // Requires at least 16 columns for baseline properties before looking for link data
             guard columns.count >= 16 else { 
                 AppLogger.shared.log("WARNING: Row \(i) has only \(columns.count) columns, skipping. Content: \(row)")
@@ -79,7 +79,9 @@ class ExcelCMSService {
                 // Safely maps custom spreadsheet data columns past index 16
                 link1: columns.count > 17 ? columns[17] : nil,
                 link2: columns.count > 18 ? columns[18] : nil,
-                link3: columns.count > 19 ? columns[19] : nil
+                link3: columns.count > 19 ? columns[19] : nil,
+                // Match Briefing - last column
+                matchBriefing: columns.count > 20 ? columns[20] : nil
             )
 
             if match.isVisible {
