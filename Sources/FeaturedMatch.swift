@@ -22,6 +22,8 @@ struct FeaturedMatch: Identifiable, Codable, Hashable {
     let link1: String?
     let link2: String?
     let link3: String?
+    // Match Briefing from Excel column
+    let matchBriefing: String?
 
     var isCurrentlyLive: Bool {
         return isLive || status.uppercased() == "LIVE" || status.uppercased() == "IN_PLAY"
@@ -30,7 +32,7 @@ struct FeaturedMatch: Identifiable, Codable, Hashable {
     var isVisible: Bool {
         guard active else { return false }
         if isCurrentlyLive { return true }
-        
+
         let formatter = ISO8601DateFormatter()
         if let date = formatter.date(from: matchDate) {
             let oneDayAgo = Calendar.current.date(byAdding: .day, value: -1, to: Date())!
@@ -78,15 +80,21 @@ struct FeaturedMatch: Identifiable, Codable, Hashable {
         return !l1.isEmpty || !l2.isEmpty || !l3.isEmpty
     }
 
+    // Checks if match briefing exists
+    var hasMatchBriefing: Bool {
+        let briefing = matchBriefing?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return !briefing.isEmpty
+    }
+
     func generateFallbackColor(for teamName: String) -> Color {
         let colors: [Color] = [.red, .blue, .orange, .purple, .teal, .indigo, .pink, .cyan, .orange, .green]
         let sum = teamName.utf8.reduce(0) { $0 + Int($1) }
         return colors[sum % colors.count]
     }
-    
+
     var homeFallbackColor: Color { generateFallbackColor(for: homeTeam) }
     var awayFallbackColor: Color { generateFallbackColor(for: awayTeam) }
-    
+
     func getTeamInitials(from teamName: String) -> String {
         let cleanName = teamName.trimmingCharacters(in: .whitespacesAndNewlines)
         let words = cleanName.components(separatedBy: " ")
