@@ -4,7 +4,7 @@ struct FeaturedMatchDetailView: View {
     let match: FeaturedMatch
     @Environment(\.dismiss) private var dismiss
     @StateObject private var favoritesManager = FavoritesManager.shared
-    
+
     // Tracks the active URL structure to safely trigger custom view context
     @State private var displayTargetURL: URL? = nil
 
@@ -12,13 +12,13 @@ struct FeaturedMatchDetailView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
-                    
+
                     // Scoreboard Banner Row
                     VStack(spacing: 12) {
                         Text(match.competition)
                             .font(.system(size: 11, weight: .bold))
                             .foregroundColor(.secondary)
-                        
+
                         HStack(spacing: 12) {
                             VStack(spacing: 6) {
                                 TeamLogoView(
@@ -35,11 +35,11 @@ struct FeaturedMatchDetailView: View {
                                     .minimumScaleFactor(0.85)
                             }
                             .frame(maxWidth: .infinity)
-                            
+
                             Text(match.displayScore)
                                 .font(.system(size: 26, weight: .black, design: .rounded))
                                 .frame(width: 70)
-                            
+
                             VStack(spacing: 6) {
                                 TeamLogoView(
                                     teamName: match.awayTeam,
@@ -66,16 +66,16 @@ struct FeaturedMatchDetailView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Match Information")
                             .font(.system(size: 15, weight: .bold))
-                        
+
                         Divider()
-                        
+
                         Group {
                             InfoDetailRow(title: "Match Status", value: match.status.uppercased())
                                 .foregroundColor(match.isCurrentlyLive ? .red : .primary)
-                            
+
                             InfoDetailRow(title: "Date", value: match.matchDate)
                             InfoDetailRow(title: "Time", value: match.matchTime)
-                            
+
                             if !match.venue.isEmpty {
                                 InfoDetailRow(title: "Venue", value: match.venue)
                             }
@@ -108,6 +108,40 @@ struct FeaturedMatchDetailView: View {
                         .padding(.horizontal)
                         .padding(.top, 8)
                     }
+
+                    // Square Banner Ad below Link buttons, above Match Briefing
+                    InlineBannerAdView(
+                        adUnitID: AdMobManager.squareBannerAdUnitID,
+                        adSize: .mediumRectangle
+                    )
+                    .padding(.horizontal)
+                    .padding(.top, 8)
+
+                    // Match Briefing Section - below the square banner ad
+                    if match.hasMatchBriefing {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "newspaper.fill")
+                                    .font(.system(size: 14, weight: .bold))
+                                    .foregroundColor(.green)
+                                Text("Match Briefing")
+                                    .font(.system(size: 15, weight: .bold))
+                            }
+
+                            Divider()
+
+                            Text(match.matchBriefing ?? "")
+                                .font(.system(size: 14))
+                                .foregroundColor(.primary)
+                                .lineSpacing(5)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding()
+                        .background(Color(.systemGray6))
+                        .cornerRadius(14)
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+                    }
                 }
                 .padding(.vertical)
             }
@@ -117,7 +151,7 @@ struct FeaturedMatchDetailView: View {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Close") { dismiss() }
                 }
-                
+
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
                         favoritesManager.toggleFavorite(match.id)
@@ -128,7 +162,7 @@ struct FeaturedMatchDetailView: View {
                     }
                 }
             }
-            // ✅ UPDATED: Secure full screen container mapping directly to ExtendedContentWebView
+            // UPDATED: Secure full screen container mapping directly to ExtendedContentWebView
             .fullScreenCover(item: Binding(
                 get: { displayTargetURL != nil ? IdentifiableURL(url: displayTargetURL!) : nil },
                 set: { displayTargetURL = $0?.url }
@@ -138,7 +172,7 @@ struct FeaturedMatchDetailView: View {
             }
         }
     }
-    
+
     // Safely parse out string formats coming from Excel rows
     private func cleanAndVerifyURL(_ rawString: String) -> URL? {
         var clean = rawString.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -164,7 +198,7 @@ struct IdentifiableURL: Identifiable {
 struct InfoDetailRow: View {
     let title: String
     let value: String
-    
+
     var body: some View {
         HStack {
             Text(title)
@@ -182,7 +216,7 @@ struct InfoDetailRow: View {
 struct TargetLinkButton: View {
     let title: String
     let action: () -> Void
-    
+
     var body: some View {
         Button(action: action) {
             HStack {
