@@ -1,16 +1,16 @@
 workflows:
   ios-testflight:
-    name: Strikescore TestFlight Deployment
+    name: StrikeScore TestFlight Deployment
     max_build_duration: 60
     instance_type: mac_mini_m1
     environment:
       groups:
-        - apple_credentials # Secure group for BUNDLE_ID and APP_STORE_APP_ID
+        - apple_credentials # Secure group containing your BUNDLE_ID and APP_STORE_APP_ID
       vars:
-        # XcodeGen typically outputs a .xcodeproj file named after your project configuration
-        XCODE_WORKSPACE: "Strikescore.xcodeproj" 
-        XCODE_SCHEME: "Strikescore"              # Match this to the scheme name defined in your project.yml
-      xcode: latest
+        # XcodeGen creates StrikeScore.xcodeproj, then CocoaPods converts it to a workspace
+        XCODE_WORKSPACE: "StrikeScore.xcworkspace" 
+        XCODE_SCHEME: "StrikeScore"
+      xcode: 16.2 # Matches the exact Xcode version from your project.yml
       cocoapods: default
 
     triggering:
@@ -21,31 +21,33 @@ workflows:
           include: true
 
     scripts:
-      - name: Install XcodeGen and Generate Project Files
+      - name: Generate Xcode Project and Install Pods
         script: |
           echo "Installing XcodeGen via Homebrew..."
           brew install xcodegen
           
-          echo "Generating Xcode project from project.yml..."
+          echo "Generating Xcode project file..."
           xcodegen generate
+          
+          echo "Installing CocoaPods dependencies..."
+          pod install
           
       - name: Initialize keychain and fetch signing certificates
         script: |
           keychain initialize
-          app-store-connect fetch-signing-files "$BUNDLE_ID" --project-type ios --create
+          app-store-connect fetch-signing-files "com.kidblunt.strikescore" --project-type ios --create
           keychain add-certificates
       
       - name: Increment build number
         script: |
-          # Fetches the latest TestFlight build number automatically to prevent duplicate errors
+          # Automatically fetches the latest TestFlight build number to prevent rejection loops
           LATEST_BUILD_NUMBER=$(app-store-connect get-latest-testflight-build-number --app-id "$APP_STORE_APP_ID")
           agvtool new-version -all $(($LATEST_BUILD_NUMBER + 1))
           
       - name: Build iOS IPA
         script: |
-          # We use the generated xcodeproj directly since XcodeGen projects don't require a workspace unless using CocoaPods
           xcode-project build-ipa \
-            --project "$XCODE_WORKSPACE" \
+            --workspace "$XCODE_WORKSPACE" \
             --scheme "$XCODE_SCHEME" \
             --mode release
 
@@ -54,5 +56,5 @@ workflows:
 
     publishing:
       app_store_connect:
-        auth: integration # Connects via your Codemagic Apple Developer Integration
+        auth: integration # Leverages your App Store Connect API integration configured in the Codemagic UI
         submit_to_testflight: true
