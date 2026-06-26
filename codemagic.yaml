@@ -1,0 +1,57 @@
+workflows:
+  ios-testflight:
+    name: Strikescore TestFlight Deployment
+    max_build_duration: 60
+    instance_type: mac_mini_m1
+    environment:
+      groups:
+        # We will store your Apple credentials securely in this Codemagic variable group
+        - apple_credentials 
+      vars:
+        XCODE_WORKSPACE: "ios/Runner.xcworkspace" # Change if your path is different
+        XCODE_SCHEME: "Runner"                    # Change to your specific Xcode scheme
+      xcode: latest
+      cocoapods: default
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: 'main'                         # Triggers deployment whenever you push to main
+          include: true
+
+    scripts:
+      - name: Initialize keychain and fetch signing certificates
+        script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" --project-type ios --create
+          keychain add-certificates
+      
+      - name: Increment build number
+        script: |
+          # Automatically fetches the latest TestFlight build number and increments it to prevent rejection
+          LATEST_BUILD_NUMBER=$(app-store-connect get-latest-testflight-build-number --app-id "$APP_STORE_APP_ID")
+          agvtool new-version -all $(($LATEST_BUILD_NUMBER + 1))
+      
+      - name: Install dependencies and Pods
+        script: |
+          # If Flutter: flutter packages get
+          # If React Native: npm install
+          cd ios && pod install
+          
+      - name: Build iOS IPA
+        script: |
+          xcode-project build-ipa \
+            --workspace "$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME" \
+            --mode release
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+
+    publishing:
+      app_store_connect:
+        auth: integration # Uses the App Store Connect integration set up in Codemagic UI
+        submit_to_testflight: true
+        beta_groups:
+          - "Internal Testers" # Optional: Specify your TestFlight group name here
