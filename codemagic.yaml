@@ -4,7 +4,6 @@ workflows:
     max_build_duration: 60
     instance_type: mac_mini_m1
     
-    # FIXED: Lowercase integration name to match exactly
     integrations:
       app_store_connect: appleapi
 
@@ -14,7 +13,7 @@ workflows:
       vars:
         XCODE_WORKSPACE: "StrikeScore.xcworkspace" 
         XCODE_SCHEME: "StrikeScore"
-      xcode: 16.2 
+      xcode: 16.2[span_0](start_span)[span_0](end_span)
       cocoapods: default
 
     triggering:
@@ -34,12 +33,15 @@ workflows:
           xcodegen generate
           
           echo "Installing CocoaPods dependencies..."
-          pod install
+          pod install[span_1](start_span)[span_1](end_span)
           
       - name: Initialize keychain and add signing certificates
         script: |
+          # Initializes the temporary build keychain
           keychain initialize
-          keychain add-certificates
+          
+          # FIXED: Explicitly tells Codemagic to use the certificate assets you uploaded via the UI settings
+          keychain add-certificates --certificate "$CM_CERTIFICATE" --certificate-password "$CM_CERTIFICATE_PASSWORD"
           
       - name: Set up Provisioning Profiles on Xcode project
         script: |
@@ -58,12 +60,6 @@ workflows:
 
     artifacts:
       - build/ios/ipa/*.ipa
-
-    publishing:
-      app_store_connect:
-        auth: integration 
-        submit_to_testflight: true
-
 
     publishing:
       app_store_connect:
