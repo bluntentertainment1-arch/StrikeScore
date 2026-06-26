@@ -1,16 +1,14 @@
-workflows:
   ios-testflight:
     name: StrikeScore TestFlight Deployment
     max_build_duration: 60
     instance_type: mac_mini_m1
     
-    # Integrates your global team Apple API key
     integrations:
       app_store_connect: appleapi
 
     environment:
       groups:
-        - Strikescore # Ensure APP_STORE_APP_ID is added here in the UI
+        - Strikescore
       vars:
         XCODE_WORKSPACE: "StrikeScore.xcworkspace" 
         XCODE_SCHEME: "StrikeScore"
@@ -38,14 +36,12 @@ workflows:
           
       - name: Initialize keychain and add signing certificates
         script: |
-          # Codemagic automatically unpacks the .p12 uploaded to the Code Signing tab
           keychain initialize
-          keychain add-certificates
+          keychain add-certificates --certificate "StrikeScore Distribution Certificate"
           
       - name: Set up Provisioning Profiles on Xcode project
         script: |
-          # Codemagic automatically injects the profile uploaded to the Code Signing tab
-          xcode-project use-profiles --production
+          xcode-project use-profiles --distribution-type app-store --profile "StrikeScore App Store Profile"
       
       - name: Increment build number
         script: |
