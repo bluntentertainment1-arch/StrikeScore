@@ -39,12 +39,25 @@ workflows:
         script: |
           keychain initialize
           
-          # Decode certificate from base64 env var
+          # Decode certificate from base64
           echo "$CERTIFICATE_P12_BASE64" | base64 --decode > /tmp/certificate.p12
           keychain add-certificates --certificate /tmp/certificate.p12 --certificate-password "$CERTIFICATE_PASSWORD"
           
       - name: Set up Provisioning Profiles on Xcode project
         script: |
+          # Decode provisioning profile from base64
+          echo "$PROVISIONING_PROFILE_BASE64" | base64 --decode > /tmp/StrikeScore_App_Store_Profile.mobileprovision
+          
+          # Create the directory if it doesn't exist
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          
+          # Copy profile to where Xcode expects it
+          cp /tmp/StrikeScore_App_Store_Profile.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/
+          
+          # List to verify
+          ls -la ~/Library/MobileDevice/Provisioning\ Profiles/
+          
+          # Apply to project
           xcode-project use-profiles
       
       - name: Increment build number
