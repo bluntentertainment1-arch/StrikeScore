@@ -4,12 +4,13 @@ workflows:
     max_build_duration: 60
     instance_type: mac_mini_m1
     
+    # Integrates your global team Apple API key
     integrations:
       app_store_connect: appleapi
 
     environment:
       groups:
-        - Strikescore 
+        - Strikescore # Ensure APP_STORE_APP_ID is added here in the UI
       vars:
         XCODE_WORKSPACE: "StrikeScore.xcworkspace" 
         XCODE_SCHEME: "StrikeScore"
@@ -37,11 +38,13 @@ workflows:
           
       - name: Initialize keychain and add signing certificates
         script: |
+          # Codemagic automatically unpacks the .p12 uploaded to the Code Signing tab
           keychain initialize
-          keychain add-certificates --certificate "$CM_CERTIFICATE" --certificate-password "$CM_CERTIFICATE_PASSWORD"
+          keychain add-certificates
           
       - name: Set up Provisioning Profiles on Xcode project
         script: |
+          # Codemagic automatically injects the profile uploaded to the Code Signing tab
           xcode-project use-profiles --production
       
       - name: Increment build number
