@@ -5,7 +5,7 @@ workflows:
     instance_type: mac_mini_m1
     environment:
       groups:
-        - Strikescore # Updated to match your exact group name in Codemagic
+        - Strikescore 
       vars:
         XCODE_WORKSPACE: "StrikeScore.xcworkspace" 
         XCODE_SCHEME: "StrikeScore"
@@ -31,17 +31,21 @@ workflows:
           echo "Installing CocoaPods dependencies..."
           pod install
           
-      - name: Initialize keychain and fetch signing certificates
+      - name: Initialize keychain and add signing certificates
         script: |
+          # This automatically unpacks and installs the .p12 and profile you uploaded to the UI
           keychain initialize
-          app-store-connect fetch-signing-files "com.kidblunt.strikescore" --project-type ios --create
           keychain add-certificates
+          
+      - name: Set up Provisioning Profiles on Xcode project
+        script: |
+          # Forces the generated XcodeGen files to look for your uploaded profile
+          xcode-project use-profiles --production
       
       - name: Increment build number
         script: |
-          # Automatically fetches the latest TestFlight build number to prevent rejection loops
-          LATEST_BUILD_NUMBER=$(app-store-connect get-latest-testflight-build-number --app-id "$APP_STORE_APP_ID")
-          agvtool new-version -all $(($LATEST_BUILD_NUMBER + 1))
+          # Uses the standard CI build count offset to keep things unique
+          agvtool new-version -all $(($BUILD_NUMBER + 100))
           
       - name: Build iOS IPA
         script: |
@@ -55,5 +59,5 @@ workflows:
 
     publishing:
       app_store_connect:
-        auth: integration # Leverages your App Store Connect API integration configured in the Codemagic UI
+        auth: integration 
         submit_to_testflight: true
