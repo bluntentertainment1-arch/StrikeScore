@@ -5,12 +5,15 @@ workflows:
     instance_type: mac_mini_m1
     environment:
       groups:
-        - Strikescore 
+        - Strikescore # Holds your APP_STORE_APP_ID variable
       vars:
         XCODE_WORKSPACE: "StrikeScore.xcworkspace" 
         XCODE_SCHEME: "StrikeScore"
-      xcode: 16.2 # Matches the exact Xcode version from your project.yml[span_0](start_span)[span_0](end_span)
+      xcode: 16.2 
       cocoapods: default
+      # ADDED: This explicitly bridges your global UI App Store Connect key to this specific workflow
+      integrations:
+        - app_store_connect
 
     triggering:
       events:
@@ -33,7 +36,7 @@ workflows:
           
       - name: Initialize keychain and add signing certificates
         script: |
-          # This automatically unpacks and installs the .p12 and profile you uploaded to the UI
+          # Automatically unpacks and installs the .p12 and profile you uploaded to the UI
           keychain initialize
           keychain add-certificates
           
