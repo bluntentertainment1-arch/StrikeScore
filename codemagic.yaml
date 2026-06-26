@@ -5,12 +5,11 @@ workflows:
     instance_type: mac_mini_m1
     environment:
       groups:
-        - apple_credentials # Secure group containing your BUNDLE_ID and APP_STORE_APP_ID
+        - Strikescore # Updated to match your exact group name in Codemagic
       vars:
-        # XcodeGen creates StrikeScore.xcodeproj, then CocoaPods converts it to a workspace
         XCODE_WORKSPACE: "StrikeScore.xcworkspace" 
         XCODE_SCHEME: "StrikeScore"
-      xcode: 16.2 # Matches the exact Xcode version from your project.yml
+      xcode: 16.2 # Matches the exact Xcode version from your project.yml[span_0](start_span)[span_0](end_span)
       cocoapods: default
 
     triggering:
