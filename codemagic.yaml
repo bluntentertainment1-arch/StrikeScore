@@ -1,3 +1,4 @@
+workflows:
   ios-testflight:
     name: StrikeScore TestFlight Deployment
     max_build_duration: 60
