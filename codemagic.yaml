@@ -5,11 +5,11 @@ workflows:
     instance_type: mac_mini_m1
     environment:
       groups:
-        # We will store your Apple credentials securely in this Codemagic variable group
-        - apple_credentials 
+        - apple_credentials # Secure group for BUNDLE_ID and APP_STORE_APP_ID
       vars:
-        XCODE_WORKSPACE: "ios/Runner.xcworkspace" # Change if your path is different
-        XCODE_SCHEME: "Runner"                    # Change to your specific Xcode scheme
+        # XcodeGen typically outputs a .xcodeproj file named after your project configuration
+        XCODE_WORKSPACE: "Strikescore.xcodeproj" 
+        XCODE_SCHEME: "Strikescore"              # Match this to the scheme name defined in your project.yml
       xcode: latest
       cocoapods: default
 
@@ -17,10 +17,18 @@ workflows:
       events:
         - push
       branch_patterns:
-        - pattern: 'main'                         # Triggers deployment whenever you push to main
+        - pattern: 'main'
           include: true
 
     scripts:
+      - name: Install XcodeGen and Generate Project Files
+        script: |
+          echo "Installing XcodeGen via Homebrew..."
+          brew install xcodegen
+          
+          echo "Generating Xcode project from project.yml..."
+          xcodegen generate
+          
       - name: Initialize keychain and fetch signing certificates
         script: |
           keychain initialize
@@ -29,20 +37,15 @@ workflows:
       
       - name: Increment build number
         script: |
-          # Automatically fetches the latest TestFlight build number and increments it to prevent rejection
+          # Fetches the latest TestFlight build number automatically to prevent duplicate errors
           LATEST_BUILD_NUMBER=$(app-store-connect get-latest-testflight-build-number --app-id "$APP_STORE_APP_ID")
           agvtool new-version -all $(($LATEST_BUILD_NUMBER + 1))
-      
-      - name: Install dependencies and Pods
-        script: |
-          # If Flutter: flutter packages get
-          # If React Native: npm install
-          cd ios && pod install
           
       - name: Build iOS IPA
         script: |
+          # We use the generated xcodeproj directly since XcodeGen projects don't require a workspace unless using CocoaPods
           xcode-project build-ipa \
-            --workspace "$XCODE_WORKSPACE" \
+            --project "$XCODE_WORKSPACE" \
             --scheme "$XCODE_SCHEME" \
             --mode release
 
@@ -51,7 +54,5 @@ workflows:
 
     publishing:
       app_store_connect:
-        auth: integration # Uses the App Store Connect integration set up in Codemagic UI
+        auth: integration # Connects via your Codemagic Apple Developer Integration
         submit_to_testflight: true
-        beta_groups:
-          - "Internal Testers" # Optional: Specify your TestFlight group name here
