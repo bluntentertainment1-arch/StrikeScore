@@ -13,7 +13,7 @@ workflows:
       vars:
         XCODE_WORKSPACE: "StrikeScore.xcworkspace" 
         XCODE_SCHEME: "StrikeScore"
-      xcode: 16.2[span_0](start_span)[span_0](end_span)
+      xcode: 16.2
       cocoapods: default
 
     triggering:
@@ -33,14 +33,11 @@ workflows:
           xcodegen generate
           
           echo "Installing CocoaPods dependencies..."
-          pod install[span_1](start_span)[span_1](end_span)
+          pod install
           
       - name: Initialize keychain and add signing certificates
         script: |
-          # Initializes the temporary build keychain
           keychain initialize
-          
-          # FIXED: Explicitly tells Codemagic to use the certificate assets you uploaded via the UI settings
           keychain add-certificates --certificate "$CM_CERTIFICATE" --certificate-password "$CM_CERTIFICATE_PASSWORD"
           
       - name: Set up Provisioning Profiles on Xcode project
