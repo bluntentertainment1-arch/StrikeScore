@@ -4,13 +4,13 @@ workflows:
     max_build_duration: 60
     instance_type: mac_mini_m1
     
-    # REQUIRED: Tells the workflow to connect to your team integration named Appleapi
+    # FIXED: Lowercase integration name to match exactly
     integrations:
-      app_store_connect: Appleapi
+      app_store_connect: appleapi
 
     environment:
       groups:
-        - Strikescore # Holds your APP_STORE_APP_ID variable
+        - Strikescore 
       vars:
         XCODE_WORKSPACE: "StrikeScore.xcworkspace" 
         XCODE_SCHEME: "StrikeScore"
@@ -38,18 +38,15 @@ workflows:
           
       - name: Initialize keychain and add signing certificates
         script: |
-          # Automatically unpacks and installs the .p12 and profile you uploaded to the UI
           keychain initialize
           keychain add-certificates
           
       - name: Set up Provisioning Profiles on Xcode project
         script: |
-          # Forces the generated XcodeGen files to look for your uploaded profile
           xcode-project use-profiles --production
       
       - name: Increment build number
         script: |
-          # Uses the standard CI build count offset to keep things unique
           agvtool new-version -all $(($BUILD_NUMBER + 100))
           
       - name: Build iOS IPA
@@ -61,6 +58,12 @@ workflows:
 
     artifacts:
       - build/ios/ipa/*.ipa
+
+    publishing:
+      app_store_connect:
+        auth: integration 
+        submit_to_testflight: true
+
 
     publishing:
       app_store_connect:
