@@ -39,34 +39,13 @@ workflows:
         script: |
           keychain initialize
           
-          echo "=== All CM_ environment variables ==="
-          env | grep "^CM_" | sort || true
-          
-          echo "=== Checking MobileDevice certificates path ==="
-          ls -la ~/Library/MobileDevice/Certificates/ 2>/dev/null || echo "Not found"
-          
-          echo "=== Checking Xcode certificates path ==="
-          ls -la ~/Library/Developer/Xcode/UserData/Certificates/ 2>/dev/null || echo "Not found"
-          
-          echo "=== Finding all .p12 files ==="
-          find ~ -name "*.p12" 2>/dev/null
-          
-          echo "=== Finding all .cer files ==="
-          find ~ -name "*.cer" 2>/dev/null
-          
-          # Try auto-discovery first
-          keychain add-certificates || true
-          
-          # If that failed and we have base64 cert fallback, use it
-          if [ -n "$CERTIFICATE_P12_BASE64" ]; then
-            echo "Using base64 certificate fallback..."
-            echo "$CERTIFICATE_P12_BASE64" | base64 --decode > /tmp/certificate.p12
-            keychain add-certificates --certificate /tmp/certificate.p12 --certificate-password "$CERTIFICATE_PASSWORD"
-          fi
+          # Decode certificate from base64 env var
+          echo "$CERTIFICATE_P12_BASE64" | base64 --decode > /tmp/certificate.p12
+          keychain add-certificates --certificate /tmp/certificate.p12 --certificate-password "$CERTIFICATE_PASSWORD"
           
       - name: Set up Provisioning Profiles on Xcode project
         script: |
-          xcode-project use-profiles --distribution-type app-store --profile "StrikeScore App Store Profile"
+          xcode-project use-profiles
       
       - name: Increment build number
         script: |
