@@ -1,4 +1,4 @@
-import SwiftUI          // ✅ ADD THIS LINE
+import SwiftUI
 import GoogleMobileAds
 import UIKit
 
@@ -104,4 +104,118 @@ class AdMobManager: NSObject {
     }
 
     func showInterstitial(completion: @escaping () -> Void) {
-        guard let rootVC
+        guard let rootVC = getRootViewController() else {
+            completion()
+            return
+        }
+
+        if let interstitial = interstitialAd {
+            interstitial.present(from: rootVC)
+            self.interstitialAd = nil // Flush used instance
+
+            // Track interstitial show
+            hasShownFirstInterstitialThisSession = true
+            lastInterstitialShowTime = Date()
+
+            loadInterstitialAd()      // Cycle background refresh
+            completion()
+        } else {
+            // Fail safely and instantly execute app behavior if background load isn't ready
+            completion()
+        }
+    }
+
+    /// Convenience method to show interstitial if frequency rules allow
+    func showInterstitialIfAllowed(completion: @escaping () -> Void) {
+        if canShowInterstitial {
+            showInterstitial(completion: completion)
+        } else {
+            completion()
+        }
+    }
+
+    // MARK: - Conditional Interstitial Triggers
+
+    /// Call this when user taps a fixture. Returns true if interstitial should show (on 2nd tap).
+    @discardableResult
+    func trackFixtureTapAndShouldShowInterstitial() -> Bool {
+        fixtureTapCount += 1
+        if fixtureTapCount == 2 {
+            fixtureTapCount = 0 // Reset after showing
+            return true
+        }
+        return false
+    }
+
+    /// Call this when user taps an article at a specific index.
+    /// Returns true if interstitial should show for indices 2, 4, or 7 (1-based).
+    @discardableResult
+    func trackArticleTap(at index: Int) -> Bool {
+        // 1-based indexing: 2nd, 4th, 7th article
+        let targetIndices = [2, 4, 7]
+        guard targetIndices.contains(index) else { return false }
+        
+        // Only show once per target index per session to avoid annoyance
+        guard !articleTapIndices.contains(index) else { return false }
+        articleTapIndices.insert(index)
+        return true
+    }
+
+    /// Call this when user taps a link button. Returns true if interstitial should show (on every link tap).
+    @discardableResult
+    func trackLinkTapAndShouldShowInterstitial() -> Bool {
+        linkTapCount += 1
+        // Show on every link tap
+        return true
+    }
+
+    // MARK: - Rewarded Ad Engine
+    func loadRewardedAd() {
+        let request = Request()
+        RewardedAd.load(with: AdMobManager.rewardedAdUnitID, request: request) { [weak self] ad, error in
+            if let error = error {
+                AppLogger.shared.error("Rewarded Ad missing or failed to preload: \(error.localizedDescription)")
+                return
+            }
+            self?.rewardedAd = ad
+        }
+    }
+
+    func showRewarded(onRewardEarned: @escaping (Int) -> Void, onClose: @escaping () -> Void) {
+        guard let rootVC = getRootViewController(), let rewarded = rewardedAd else {
+            onClose()
+            return
+        }
+
+        rewarded.present(from: rootVC) {
+            let reward = rewarded.adReward
+            onRewardEarned(reward.amount.intValue)
+        }
+
+        self.rewardedAd = nil
+        loadRewardedAd() // Preload next instance instantly
+        
+        // Reset prompt visibility flag when ad closes
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.isRewardedPromptVisible = false
+        }
+        
+        onClose()
+    }
+
+    // MARK: - Modern Safe Window Resolution Context Lookups
+    private func getRootViewController() -> UIViewController? {
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let rootVC = windowScene.windows.first(where: { $0.isKeyWindow })?.rootViewController else {
+            return nil
+        }
+        return rootVC
+    }
+}
+
+// MARK: - UIAdaptivePresentationControllerDelegate
+extension AdMobManager: UIAdaptivePresentationControllerDelegate {
+    func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+        isRewardedPromptVisible = false
+    }
+}
