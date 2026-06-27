@@ -1,6 +1,5 @@
 import SwiftUI
 import WebKit
-import Combine
 
 class WebContentStorage: ObservableObject {
     var webView: WKWebView?
@@ -12,19 +11,13 @@ struct ExtendedContentWebView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var storage = WebContentStorage()
     @State private var canGoBack = false
-    @State private var orientation = UIDeviceOrientation.unknown
-
-    // Detect iPad
-    private var isPad: Bool {
-        UIDevice.current.userInterfaceIdiom == .pad
-    }
 
     var body: some View {
         VStack(spacing: 0) {
             Color(.systemBackground)
                 .frame(height: safeAreaTopInset)
                 .ignoresSafeArea(edges: .top)
-            
+
             HStack {
                 Button(action: { storage.webView?.goBack() }) {
                     HStack(spacing: 4) {
@@ -35,12 +28,12 @@ struct ExtendedContentWebView: View {
                     .foregroundColor(canGoBack ? .green : .secondary)
                 }
                 .disabled(!canGoBack)
-                
+
                 Spacer()
                 Text("Content View")
                     .font(.system(size: 15, weight: .bold, design: .rounded))
                 Spacer()
-                
+
                 Button(action: { dismiss() }) {
                     Text("Close")
                         .fontWeight(.bold)
@@ -50,21 +43,15 @@ struct ExtendedContentWebView: View {
             .padding(.horizontal)
             .padding(.vertical, 12)
             .background(Color(.systemBackground))
-            
+
             Divider()
-            
-            SecureWebEngineRepresentable(url: url, storage: storage, canGoBack: $canGoBack, orientation: $orientation)
+
+            SecureWebEngineRepresentable(url: url, storage: storage, canGoBack: $canGoBack)
                 .ignoresSafeArea(edges: .bottom)
         }
         .background(Color(.systemBackground))
-        // iPad: present as sheet with fixed width instead of full screen cover
-        .frame(maxWidth: isPad ? 800 : .infinity)
-        .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
-            // Track orientation changes to handle WebView reloads
-            orientation = UIDevice.current.orientation
-        }
     }
-    
+
     private var safeAreaTopInset: CGFloat {
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let topInset = windowScene.windows.first?.safeAreaInsets.top else { return 20 }
@@ -76,78 +63,67 @@ struct SecureWebEngineRepresentable: UIViewRepresentable {
     let url: URL
     let storage: WebContentStorage
     @Binding var canGoBack: Bool
-    @Binding var orientation: UIDeviceOrientation
 
     func makeUIView(context: Context) -> WKWebView {
         if let existingView = storage.webView, storage.lastLoadedURL == url {
-            // Don't recreate webview on rotation, reuse existing one
             return existingView
         }
-        
+
         let configuration = WKWebViewConfiguration()
         configuration.allowsInlineMediaPlayback = true
         configuration.mediaTypesRequiringUserActionForPlayback = []
-        
-        // JavaScript is enabled by default; no need to set deprecated property
-        
+
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
-        
-        // Disable bounces but allow proper zoom/scale handling
         webView.scrollView.bounces = false
+
+        // Prevent zoom on rotation - critical fix
         webView.scrollView.contentMode = .scaleToFill
-        
-        // Handle auto-layout for rotation properly
-        webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        
-        // Inject viewport meta tag to prevent zoom issues on rotation
+        webView.scrollView.minimumZoomScale = 1.0
+        webView.scrollView.maximumZoomScale = 1.0
+
+        // Inject viewport meta to lock scale
         let viewportScript = """
         var meta = document.querySelector('meta[name="viewport"]');
         if (!meta) {
             meta = document.createElement('meta');
             meta.name = 'viewport';
-            document.head.appendChild(meta);
+            document.getElementsByTagName('head')[0].appendChild(meta);
         }
-        meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+        meta.content = 'width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no';
         """
         let userScript = WKUserScript(source: viewportScript, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
-        webView.configuration.userContentController.addUserScript(userScript)
+        configuration.userContentController.addUserScript(userScript)
 
         storage.webView = webView
         storage.lastLoadedURL = url
-        
+
         webView.load(URLRequest(url: url))
         return webView
     }
-    
+
     func updateUIView(_ uiView: WKWebView, context: Context) {
-        // On orientation change, only update frame bounds, don't reload
-        // The binding change triggers updateUIView but we don't reload content
-        if uiView.url == nil || uiView.url?.absoluteString != url.absoluteString {
+        // CRITICAL: Do NOT reload on update - only if URL actually changed
+        if uiView.url?.absoluteString != url.absoluteString {
             uiView.load(URLRequest(url: url))
         }
-        
-        // Force layout update without reload to fix zoom issues
-        uiView.setNeedsLayout()
-        uiView.layoutIfNeeded()
     }
-    
+
     func makeCoordinator() -> Coordinator { Coordinator(self) }
-    
+
     class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
         var parent: SecureWebEngineRepresentable
         init(_ parent: SecureWebEngineRepresentable) { self.parent = parent }
-        
+
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             DispatchQueue.main.async { self.parent.canGoBack = webView.canGoBack }
         }
-        
+
         func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
             DispatchQueue.main.async { self.parent.canGoBack = webView.canGoBack }
         }
-        
-        // Handle new window requests (prevents some stream refreshes)
+
         func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
             if let url = navigationAction.request.url {
                 webView.load(URLRequest(url: url))
