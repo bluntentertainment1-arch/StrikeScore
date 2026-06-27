@@ -3,24 +3,22 @@ import SwiftUI
 struct ContentView: View {
     @State private var selectedTab = 0
     @State private var showMenu = false
-    
-    // Detect iPad for layout adjustments
+
     private var isPad: Bool {
         UIDevice.current.userInterfaceIdiom == .pad
     }
-    
+
     var body: some View {
         ZStack {
             Color(.systemBackground)
                 .ignoresSafeArea()
-            
-            // iPad: Use NavigationSplitView for better iPad layout
+
             if isPad {
                 ipadLayout
             } else {
                 iphoneLayout
             }
-            
+
             if showMenu {
                 SideMenuView(isShowing: $showMenu)
             }
@@ -45,7 +43,7 @@ struct ContentView: View {
             .ignoresSafeArea()
         )
         .onAppear {
-            // Ensure rewarded prompt timer is running when app is active
+            AdMobManager.shared.loadAllAds()
             AdMobManager.shared.startRewardedPromptTimer()
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
@@ -55,22 +53,18 @@ struct ContentView: View {
             AdMobManager.shared.startRewardedPromptTimer()
         }
     }
-    
-    // iPhone layout (original)
+
     private var iphoneLayout: some View {
         TabView(selection: $selectedTab) {
             HomeView()
                 .tabItem { Label("Home", systemImage: "house") }
                 .tag(0)
-            
             LiveMatchesView()
                 .tabItem { Label("Live", systemImage: "sportscourt") }
                 .tag(1)
-            
             FixturesView()
                 .tabItem { Label("Schedule", systemImage: "calendar") }
                 .tag(2)
-            
             EditorialView()
                 .tabItem {
                     VStack {
@@ -80,7 +74,6 @@ struct ContentView: View {
                     }
                 }
                 .tag(3)
-            
             FavoritesView()
                 .tabItem { Label("Favorites", systemImage: "heart") }
                 .tag(4)
@@ -90,8 +83,7 @@ struct ContentView: View {
             Color.clear.frame(height: 50)
         }
     }
-    
-    // iPad: Use sidebar navigation for better space utilization
+
     @available(iOS 16.0, *)
     private var ipadLayout: some View {
         NavigationSplitView {
