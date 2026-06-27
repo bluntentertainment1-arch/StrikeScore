@@ -13,8 +13,8 @@ struct HomeView: View {
     }
 
     var finishedResultsMatches: [FeaturedMatch] {
-        viewModel.featuredMatches.filter { 
-            $0.status.uppercased() == "FINISHED" || $0.status.uppercased() == "FT" 
+        viewModel.featuredMatches.filter {
+            $0.status.uppercased() == "FINISHED" || $0.status.uppercased() == "FT"
         }
     }
 
@@ -35,21 +35,19 @@ struct HomeView: View {
         }
     }
 
-    // Group fixtures by competition for the non-search view
     var groupedFixtures: [(competition: String, matches: [FeaturedMatch])] {
         let fixtures = filteredFixturesFeed
         let grouped = Dictionary(grouping: fixtures) { $0.competition }
         return grouped
-            .sorted { $0.value.count > $1.value.count } // Sort by most matches first
+            .sorted { $0.value.count > $1.value.count }
             .map { (competition: $0.key, matches: $0.value.sorted { $0.matchTime < $1.matchTime }) }
     }
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 0) { // Changed from 16 to 0 to remove blank space
-
-                    // Banner Ad directly below search bar, no extra spacing
+                VStack(spacing: 0) {
+                    // Banner Ad directly under nav bar / search area
                     InlineBannerAdView(
                         adUnitID: AdMobManager.bannerAdUnitID,
                         adSize: .standard
@@ -57,10 +55,10 @@ struct HomeView: View {
                     .padding(.horizontal)
                     .padding(.top, 4)
 
-                    // 1. Horizontal Date Picker Slider
+                    // Date Picker
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 10) {
-                            ForEach(-3...7, id: \.self) { day in
+                            ForEach(-3...7, id: \self) { day in
                                 DateBubbleView(day: day, isSelected: selectedDate == day) {
                                     selectedDate = day
                                 }
@@ -70,7 +68,7 @@ struct HomeView: View {
                     }
                     .padding(.top, 12)
 
-                    // 2. Latest Results Carousel
+                    // Latest Results
                     if !finishedResultsMatches.isEmpty && searchText.isEmpty {
                         VStack(alignment: .leading, spacing: 8) {
                             HStack(spacing: 6) {
@@ -87,7 +85,7 @@ struct HomeView: View {
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 10) {
                                     ForEach(finishedResultsMatches) { match in
-                                        Button(action: { 
+                                        Button(action: {
                                             handleFixtureTap(match: match)
                                         }) {
                                             HomeResultsCarouselCard(match: match)
@@ -102,7 +100,7 @@ struct HomeView: View {
                         .padding(.top, 12)
                     }
 
-                    // 3. Compact Main Fixtures Feed Section - Grouped by Competition
+                    // Fixtures Feed
                     VStack(alignment: .leading, spacing: 10) {
                         Text(searchText.isEmpty ? "Fixtures Feed" : "Search Results")
                             .font(.system(size: 16, weight: .bold))
@@ -120,11 +118,9 @@ struct HomeView: View {
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 30)
                         } else if searchText.isEmpty {
-                            // Grouped by competition when not searching
                             LazyVStack(spacing: 16) {
-                                ForEach(Array(groupedFixtures.enumerated()), id: \.offset) { groupIndex, group in
+                                ForEach(Array(groupedFixtures.enumerated()), id: \offset) { groupIndex, group in
                                     VStack(alignment: .leading, spacing: 10) {
-                                        // Competition Header
                                         HStack(spacing: 6) {
                                             Image(systemName: "shield.fill")
                                                 .font(.system(size: 10, weight: .bold))
@@ -133,24 +129,21 @@ struct HomeView: View {
                                                 .font(.system(size: 12, weight: .black))
                                                 .foregroundColor(.green)
                                                 .tracking(0.5)
-
                                             Rectangle()
                                                 .fill(Color.green.opacity(0.3))
                                                 .frame(height: 1)
                                         }
                                         .padding(.horizontal)
 
-                                        // Matches in this competition
                                         VStack(spacing: 10) {
-                                            ForEach(Array(group.matches.enumerated()), id: \.element.id) { matchIndex, match in
+                                            ForEach(Array(group.matches.enumerated()), id: \element.id) { matchIndex, match in
                                                 VStack(spacing: 10) {
                                                     MatchCardView(match: match, onTap: {
                                                         handleFixtureTap(match: match)
                                                     })
                                                     .padding(.horizontal)
 
-                                                    // Insert banner ad every 3 fixtures globally
-                                                    let globalIndex = groupIndex * 100 + matchIndex // rough global index
+                                                    let globalIndex = groupIndex * 100 + matchIndex
                                                     if (globalIndex + 1) % 3 == 0 {
                                                         InlineBannerAdView(
                                                             adUnitID: AdMobManager.bannerAdUnitID,
@@ -165,9 +158,8 @@ struct HomeView: View {
                                 }
                             }
                         } else {
-                            // Flat list when searching
                             LazyVStack(spacing: 10) {
-                                ForEach(Array(filteredFixturesFeed.enumerated()), id: \.element.id) { index, match in
+                                ForEach(Array(filteredFixturesFeed.enumerated()), id: \element.id) { index, match in
                                     VStack(spacing: 10) {
                                         MatchCardView(match: match, onTap: {
                                             handleFixtureTap(match: match)
@@ -193,7 +185,6 @@ struct HomeView: View {
             .navigationTitle("StrikeScore")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.visible, for: .navigationBar)
-            .padding(.top, 44)
             .searchable(text: $searchText, prompt: "Search teams...")
             .sheet(item: $selectedMatch) { match in
                 FeaturedMatchDetailView(match: match)
@@ -204,7 +195,6 @@ struct HomeView: View {
         }
     }
 
-    /// Handles fixture tap with interstitial logic (shows on 2nd tap)
     private func handleFixtureTap(match: FeaturedMatch) {
         let shouldShowAd = AdMobManager.shared.trackFixtureTapAndShouldShowInterstitial()
         if shouldShowAd {
@@ -292,7 +282,6 @@ struct DateBubbleView: View {
                 Text(calculatedDate.formatted(.dateTime.weekday(.abbreviated)).uppercased())
                     .font(.system(size: 9, weight: .bold))
                     .foregroundColor(isSelected ? .white : .secondary)
-
                 Text(calculatedDate.formatted(.dateTime.day()))
                     .font(.system(size: 14, weight: .black, design: .rounded))
                     .foregroundColor(isSelected ? .white : .primary)
