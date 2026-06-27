@@ -19,6 +19,11 @@ class AdMobManager: NSObject {
     private var hasShownFirstInterstitialThisSession = false
     private let interstitialCooldown: TimeInterval = 240 // 4 minutes
 
+    // MARK: - Tap Tracking for Conditional Interstitial Display
+    private var fixtureTapCount = 0
+    private var articleTapIndices: Set<Int> = []
+    private var linkTapCount = 0
+
     private override init() {
         super.init()
     }
@@ -84,6 +89,41 @@ class AdMobManager: NSObject {
         } else {
             completion()
         }
+    }
+
+    // MARK: - Conditional Interstitial Triggers
+
+    /// Call this when user taps a fixture. Returns true if interstitial should show (on 2nd tap).
+    @discardableResult
+    func trackFixtureTapAndShouldShowInterstitial() -> Bool {
+        fixtureTapCount += 1
+        if fixtureTapCount == 2 {
+            fixtureTapCount = 0 // Reset after showing
+            return true
+        }
+        return false
+    }
+
+    /// Call this when user taps an article at a specific index.
+    /// Returns true if interstitial should show for indices 2, 4, or 7 (1-based).
+    @discardableResult
+    func trackArticleTap(at index: Int) -> Bool {
+        // 1-based indexing: 2nd, 4th, 7th article
+        let targetIndices = [2, 4, 7]
+        guard targetIndices.contains(index) else { return false }
+        
+        // Only show once per target index per session to avoid annoyance
+        guard !articleTapIndices.contains(index) else { return false }
+        articleTapIndices.insert(index)
+        return true
+    }
+
+    /// Call this when user taps a link button. Returns true if interstitial should show (on every link tap).
+    @discardableResult
+    func trackLinkTapAndShouldShowInterstitial() -> Bool {
+        linkTapCount += 1
+        // Show on every link tap
+        return true
     }
 
     // MARK: - Rewarded Ad Engine
