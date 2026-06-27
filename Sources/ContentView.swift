@@ -14,7 +14,7 @@ struct ContentView: View {
             Color(.systemBackground)
                 .ignoresSafeArea()
             
-            // ✅ iPad: Use NavigationSplitView for better iPad layout
+            // iPad: Use NavigationSplitView for better iPad layout
             if isPad {
                 ipadLayout
             } else {
@@ -44,6 +44,16 @@ struct ContentView: View {
             }
             .ignoresSafeArea()
         )
+        .onAppear {
+            // Ensure rewarded prompt timer is running when app is active
+            AdMobManager.shared.startRewardedPromptTimer()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
+            AdMobManager.shared.stopRewardedPromptTimer()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            AdMobManager.shared.startRewardedPromptTimer()
+        }
     }
     
     // iPhone layout (original)
@@ -81,7 +91,7 @@ struct ContentView: View {
         }
     }
     
-    // ✅ iPad: Use sidebar navigation for better space utilization
+    // iPad: Use sidebar navigation for better space utilization
     @available(iOS 16.0, *)
     private var ipadLayout: some View {
         NavigationSplitView {
