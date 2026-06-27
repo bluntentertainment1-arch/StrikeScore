@@ -19,6 +19,11 @@ class AdMobManager: NSObject {
     private var hasShownFirstInterstitialThisSession = false
     private let interstitialCooldown: TimeInterval = 240 // 4 minutes
 
+    // MARK: - Rewarded Ad Prompt Timer (every 5 minutes)
+    private var rewardedPromptTimer: Timer?
+    private var isRewardedPromptVisible = false
+    private let rewardedPromptInterval: TimeInterval = 300 // 5 minutes
+
     // MARK: - Tap Tracking for Conditional Interstitial Display
     private var fixtureTapCount = 0
     private var articleTapIndices: Set<Int> = []
@@ -32,6 +37,43 @@ class AdMobManager: NSObject {
     func loadAllAds() {
         loadInterstitialAd()
         loadRewardedAd()
+        startRewardedPromptTimer()
+    }
+
+    // MARK: - Rewarded Ad Prompt Timer
+    func startRewardedPromptTimer() {
+        // Show first prompt after 5 minutes, then repeat every 5 minutes
+        rewardedPromptTimer = Timer.scheduledTimer(withTimeInterval: rewardedPromptInterval, repeats: true) { [weak self] _ in
+            self?.triggerRewardedPrompt()
+        }
+    }
+
+    func stopRewardedPromptTimer() {
+        rewardedPromptTimer?.invalidate()
+        rewardedPromptTimer = nil
+    }
+
+    private func triggerRewardedPrompt() {
+        guard !isRewardedPromptVisible else { return }
+        
+        DispatchQueue.main.async {
+            guard let rootVC = self.getRootViewController() else { return }
+            
+            let promptVC = UIHostingController(rootView: RewardedAdPromptView())
+            promptVC.modalPresentationStyle = .formSheet
+            promptVC.isModalInPresentation = false
+            
+            // For iPad, make it a nice centered card
+            if UIDevice.current.userInterfaceIdiom == .pad {
+                promptVC.preferredContentSize = CGSize(width: 400, height: 480)
+            }
+            
+            self.isRewardedPromptVisible = true
+            rootVC.present(promptVC, animated: true)
+            
+            // Reset flag when dismissed (observed via presentationController)
+            promptVC.presentationController?.delegate = self
+        }
     }
 
     // MARK: - Interstitial Ad Engine
@@ -151,6 +193,13 @@ class AdMobManager: NSObject {
 
         self.rewardedAd = nil
         loadRewardedAd() // Preload next instance instantly
+        
+        // Reset prompt visibility flag when ad closes
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.isRewardedPromptVisible = false
+        }
+        
+        onClose()
     }
 
     // MARK: - Modern Safe Window Resolution Context Lookups
@@ -160,5 +209,12 @@ class AdMobManager: NSObject {
             return nil
         }
         return rootVC
+    }
+}
+
+// MARK: - UIAdaptivePresentationControllerDelegate
+extension AdMobManager: UIAdaptivePresentationControllerDelegate {
+    func presentationControllerDidDismiss(_ presentationController: UIPresentationController) {
+        isRewardedPromptVisible = false
     }
 }
