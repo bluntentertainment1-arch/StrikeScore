@@ -8,28 +8,32 @@ struct FeaturedMatchDetailView: View {
     // Tracks the active URL structure to safely trigger custom view context
     @State private var displayTargetURL: URL? = nil
 
+    // Detect iPad for layout adjustments
+    private var isPad: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
-
                     // Scoreboard Banner Row
                     VStack(spacing: 12) {
                         Text(match.competition)
                             .font(.system(size: 11, weight: .bold))
                             .foregroundColor(.secondary)
 
-                        HStack(spacing: 12) {
+                        HStack(spacing: isPad ? 24 : 12) {
                             VStack(spacing: 6) {
                                 TeamLogoView(
                                     teamName: match.homeTeam,
                                     localSpreadsheetURL: match.homeFlagURL,
                                     fallbackColor: match.homeFallbackColor,
                                     initials: match.getTeamInitials(from: match.homeTeam),
-                                    size: 44
+                                    size: isPad ? 60 : 44
                                 )
                                 Text(match.homeTeam)
-                                    .font(.system(size: 13, weight: .bold))
+                                    .font(.system(size: isPad ? 15 : 13, weight: .bold))
                                     .multilineTextAlignment(.center)
                                     .lineLimit(2)
                                     .minimumScaleFactor(0.85)
@@ -37,8 +41,8 @@ struct FeaturedMatchDetailView: View {
                             .frame(maxWidth: .infinity)
 
                             Text(match.displayScore)
-                                .font(.system(size: 26, weight: .black, design: .rounded))
-                                .frame(width: 70)
+                                .font(.system(size: isPad ? 32 : 26, weight: .black, design: .rounded))
+                                .frame(width: isPad ? 90 : 70)
 
                             VStack(spacing: 6) {
                                 TeamLogoView(
@@ -46,10 +50,10 @@ struct FeaturedMatchDetailView: View {
                                     localSpreadsheetURL: match.awayFlagURL,
                                     fallbackColor: match.awayFallbackColor,
                                     initials: match.getTeamInitials(from: match.awayTeam),
-                                    size: 44
+                                    size: isPad ? 60 : 44
                                 )
                                 Text(match.awayTeam)
-                                    .font(.system(size: 13, weight: .bold))
+                                    .font(.system(size: isPad ? 15 : 13, weight: .bold))
                                     .multilineTextAlignment(.center)
                                     .lineLimit(2)
                                     .minimumScaleFactor(0.85)
@@ -61,6 +65,8 @@ struct FeaturedMatchDetailView: View {
                     .background(Color(.systemGray6).opacity(0.6))
                     .cornerRadius(14)
                     .padding(.horizontal)
+                    // iPad: limit width and center content
+                    .frame(maxWidth: isPad ? 700 : .infinity)
 
                     // Core Information Details
                     VStack(alignment: .leading, spacing: 12) {
@@ -91,22 +97,30 @@ struct FeaturedMatchDetailView: View {
                     .background(Color(.systemGray6))
                     .cornerRadius(14)
                     .padding(.horizontal)
+                    .frame(maxWidth: isPad ? 700 : .infinity)
 
                     // Links Section Integration
                     if match.hasAdditionalContent {
                         HStack(spacing: 12) {
                             if let l1 = match.link1, let url = cleanAndVerifyURL(l1) {
-                                TargetLinkButton(title: "Link 1", action: { displayTargetURL = url })
+                                TargetLinkButton(title: "Link 1", action: { 
+                                    handleLinkTap(url: url)
+                                })
                             }
                             if let l2 = match.link2, let url = cleanAndVerifyURL(l2) {
-                                TargetLinkButton(title: "Link 2", action: { displayTargetURL = url })
+                                TargetLinkButton(title: "Link 2", action: { 
+                                    handleLinkTap(url: url)
+                                })
                             }
                             if let l3 = match.link3, let url = cleanAndVerifyURL(l3) {
-                                TargetLinkButton(title: "Link 3", action: { displayTargetURL = url })
+                                TargetLinkButton(title: "Link 3", action: { 
+                                    handleLinkTap(url: url)
+                                })
                             }
                         }
                         .padding(.horizontal)
                         .padding(.top, 8)
+                        .frame(maxWidth: isPad ? 700 : .infinity)
                     }
 
                     // Square Banner Ad below Link buttons, above Match Briefing
@@ -116,6 +130,7 @@ struct FeaturedMatchDetailView: View {
                     )
                     .padding(.horizontal)
                     .padding(.top, 8)
+                    .frame(maxWidth: isPad ? 700 : .infinity)
 
                     // Match Briefing Section - below the square banner ad
                     if match.hasMatchBriefing {
@@ -140,10 +155,12 @@ struct FeaturedMatchDetailView: View {
                         .background(Color(.systemGray6))
                         .cornerRadius(14)
                         .padding(.horizontal)
-                        .padding(.top, 8)
+                        .frame(maxWidth: isPad ? 700 : .infinity)
                     }
                 }
                 .padding(.vertical)
+                // iPad: center the entire content
+                .frame(maxWidth: .infinity)
             }
             .navigationTitle("Match Details")
             .navigationBarTitleDisplayMode(.inline)
@@ -162,7 +179,6 @@ struct FeaturedMatchDetailView: View {
                     }
                 }
             }
-            // UPDATED: Secure full screen container mapping directly to ExtendedContentWebView
             .fullScreenCover(item: Binding(
                 get: { displayTargetURL != nil ? IdentifiableURL(url: displayTargetURL!) : nil },
                 set: { displayTargetURL = $0?.url }
@@ -170,6 +186,18 @@ struct FeaturedMatchDetailView: View {
                 ExtendedContentWebView(url: identifiable.url)
                     .ignoresSafeArea()
             }
+        }
+    }
+
+    /// Handles link tap with interstitial logic
+    private func handleLinkTap(url: URL) {
+        let shouldShowAd = AdMobManager.shared.trackLinkTapAndShouldShowInterstitial()
+        if shouldShowAd {
+            AdMobManager.shared.showInterstitialIfAllowed {
+                self.displayTargetURL = url
+            }
+        } else {
+            self.displayTargetURL = url
         }
     }
 
