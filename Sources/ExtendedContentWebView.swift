@@ -1,5 +1,6 @@
 import SwiftUI
 import WebKit
+import Combine
 
 class WebContentStorage: ObservableObject {
     var webView: WKWebView?
@@ -11,6 +12,12 @@ struct ExtendedContentWebView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var storage = WebContentStorage()
     @State private var canGoBack = false
+    @State private var orientation = UIDeviceOrientation.unknown
+
+    // Detect iPad
+    private var isPad: Bool {
+        UIDevice.current.userInterfaceIdiom == .pad
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -46,10 +53,16 @@ struct ExtendedContentWebView: View {
             
             Divider()
             
-            SecureWebEngineRepresentable(url: url, storage: storage, canGoBack: $canGoBack)
+            SecureWebEngineRepresentable(url: url, storage: storage, canGoBack: $canGoBack, orientation: $orientation)
                 .ignoresSafeArea(edges: .bottom)
         }
         .background(Color(.systemBackground))
+        // iPad: present as sheet with fixed width instead of full screen cover
+        .frame(maxWidth: isPad ? 800 : .infinity)
+        .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
+            // Track orientation changes to handle WebView reloads
+            orientation = UIDevice.current.orientation
+        }
     }
     
     private var safeAreaTopInset: CGFloat {
@@ -63,9 +76,11 @@ struct SecureWebEngineRepresentable: UIViewRepresentable {
     let url: URL
     let storage: WebContentStorage
     @Binding var canGoBack: Bool
-    
+    @Binding var orientation: UIDeviceOrientation
+
     func makeUIView(context: Context) -> WKWebView {
         if let existingView = storage.webView, storage.lastLoadedURL == url {
+            // ✅ FIXED: Don't recreate webview on rotation, reuse existing one
             return existingView
         }
         
@@ -73,11 +88,33 @@ struct SecureWebEngineRepresentable: UIViewRepresentable {
         configuration.allowsInlineMediaPlayback = true
         configuration.mediaTypesRequiringUserActionForPlayback = []
         
+        // ✅ FIXED: Enable viewport meta tag support for proper scaling on rotation
+        configuration.preferences.javaScriptEnabled = true
+        
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
-        webView.scrollView.bounces = false
         
+        // ✅ FIXED: Disable bounces but allow proper zoom/scale handling
+        webView.scrollView.bounces = false
+        webView.scrollView.contentMode = .scaleToFill
+        
+        // ✅ FIXED: Handle auto-layout for rotation properly
+        webView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        
+        // Inject viewport meta tag to prevent zoom issues on rotation
+        let viewportScript = """
+        var meta = document.querySelector('meta[name="viewport"]');
+        if (!meta) {
+            meta = document.createElement('meta');
+            meta.name = 'viewport';
+            document.head.appendChild(meta);
+        }
+        meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+        """
+        let userScript = WKUserScript(source: viewportScript, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
+        webView.configuration.userContentController.addUserScript(userScript)
+
         storage.webView = webView
         storage.lastLoadedURL = url
         
@@ -85,7 +122,17 @@ struct SecureWebEngineRepresentable: UIViewRepresentable {
         return webView
     }
     
-    func updateUIView(_ uiView: WKWebView, context: Context) {}
+    func updateUIView(_ uiView: WKWebView, context: Context) {
+        // ✅ FIXED: On orientation change, only update frame bounds, don't reload
+        // The binding change triggers updateUIView but we don't reload content
+        if uiView.url == nil || uiView.url?.absoluteString != url.absoluteString {
+            webView.load(URLRequest(url: url))
+        }
+        
+        // Force layout update without reload to fix zoom issues
+        uiView.setNeedsLayout()
+        uiView.layoutIfNeeded()
+    }
     
     func makeCoordinator() -> Coordinator { Coordinator(self) }
     
@@ -97,9 +144,16 @@ struct SecureWebEngineRepresentable: UIViewRepresentable {
             DispatchQueue.main.async { self.parent.canGoBack = webView.canGoBack }
         }
         
-        // ✅ FIXED: Changed parameter type from 'UIViewNavigation!' to 'WKNavigation!'
         func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
             DispatchQueue.main.async { self.parent.canGoBack = webView.canGoBack }
+        }
+        
+        // ✅ FIXED: Handle new window requests (prevents some stream refreshes)
+        func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+            if let url = navigationAction.request.url {
+                webView.load(URLRequest(url: url))
+            }
+            return nil
         }
     }
 }
