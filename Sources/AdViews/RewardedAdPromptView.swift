@@ -4,10 +4,13 @@ struct RewardedAdPromptView: View {
     @State private var showingAlert = false
     @State private var alertMessage = ""
     @Environment(\.dismiss) private var dismiss
+    
+    // Backward-compatible animation state
+    @State private var heartScale: CGFloat = 1.0
 
     var body: some View {
         VStack(spacing: 28) {
-            // Animated support icon
+            // Animated support icon (iOS 16 compatible)
             ZStack {
                 Circle()
                     .fill(Color.green.opacity(0.15))
@@ -16,7 +19,13 @@ struct RewardedAdPromptView: View {
                 Image(systemName: "heart.fill")
                     .font(.system(size: 40))
                     .foregroundColor(.green)
-                    .symbolEffect(.pulse, options: .repeating)
+                    .scaleEffect(heartScale)
+                    .onAppear {
+                        // Backward-compatible pulse animation
+                        withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
+                            heartScale = 1.15
+                        }
+                    }
             }
             .padding(.top, 8)
 
