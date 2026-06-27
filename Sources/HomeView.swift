@@ -47,9 +47,9 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 16) {
+                VStack(spacing: 0) { // Changed from 16 to 0 to remove blank space
 
-                    // Banner Ad right below menu bar, above date picker
+                    // Banner Ad directly below search bar, no extra spacing
                     InlineBannerAdView(
                         adUnitID: AdMobManager.bannerAdUnitID,
                         adSize: .standard
@@ -68,6 +68,7 @@ struct HomeView: View {
                         }
                         .padding(.horizontal)
                     }
+                    .padding(.top, 12)
 
                     // 2. Latest Results Carousel
                     if !finishedResultsMatches.isEmpty && searchText.isEmpty {
@@ -86,7 +87,9 @@ struct HomeView: View {
                             ScrollView(.horizontal, showsIndicators: false) {
                                 HStack(spacing: 10) {
                                     ForEach(finishedResultsMatches) { match in
-                                        Button(action: { selectedMatch = match }) {
+                                        Button(action: { 
+                                            handleFixtureTap(match: match)
+                                        }) {
                                             HomeResultsCarouselCard(match: match)
                                         }
                                         .buttonStyle(PlainButtonStyle())
@@ -96,6 +99,7 @@ struct HomeView: View {
                                 .padding(.bottom, 2)
                             }
                         }
+                        .padding(.top, 12)
                     }
 
                     // 3. Compact Main Fixtures Feed Section - Grouped by Competition
@@ -141,7 +145,7 @@ struct HomeView: View {
                                             ForEach(Array(group.matches.enumerated()), id: \.element.id) { matchIndex, match in
                                                 VStack(spacing: 10) {
                                                     MatchCardView(match: match, onTap: {
-                                                        selectedMatch = match
+                                                        handleFixtureTap(match: match)
                                                     })
                                                     .padding(.horizontal)
 
@@ -166,7 +170,7 @@ struct HomeView: View {
                                 ForEach(Array(filteredFixturesFeed.enumerated()), id: \.element.id) { index, match in
                                     VStack(spacing: 10) {
                                         MatchCardView(match: match, onTap: {
-                                            selectedMatch = match
+                                            handleFixtureTap(match: match)
                                         })
                                         .padding(.horizontal)
 
@@ -182,6 +186,7 @@ struct HomeView: View {
                             }
                         }
                     }
+                    .padding(.top, 12)
                 }
                 .padding(.vertical, 12)
             }
@@ -196,6 +201,18 @@ struct HomeView: View {
             .refreshable {
                 await viewModel.loadCMSData()
             }
+        }
+    }
+
+    /// Handles fixture tap with interstitial logic (shows on 2nd tap)
+    private func handleFixtureTap(match: FeaturedMatch) {
+        let shouldShowAd = AdMobManager.shared.trackFixtureTapAndShouldShowInterstitial()
+        if shouldShowAd {
+            AdMobManager.shared.showInterstitialIfAllowed {
+                self.selectedMatch = match
+            }
+        } else {
+            self.selectedMatch = match
         }
     }
 }
