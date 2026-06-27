@@ -4,11 +4,8 @@ struct FeaturedMatchDetailView: View {
     let match: FeaturedMatch
     @Environment(\.dismiss) private var dismiss
     @StateObject private var favoritesManager = FavoritesManager.shared
-
-    // Tracks the active URL structure to safely trigger custom view context
     @State private var displayTargetURL: URL? = nil
 
-    // Detect iPad for layout adjustments
     private var isPad: Bool {
         UIDevice.current.userInterfaceIdiom == .pad
     }
@@ -17,7 +14,7 @@ struct FeaturedMatchDetailView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
-                    // Scoreboard Banner Row
+                    // Scoreboard
                     VStack(spacing: 12) {
                         Text(match.competition)
                             .font(.system(size: 11, weight: .bold))
@@ -65,23 +62,18 @@ struct FeaturedMatchDetailView: View {
                     .background(Color(.systemGray6).opacity(0.6))
                     .cornerRadius(14)
                     .padding(.horizontal)
-                    // iPad: limit width and center content
                     .frame(maxWidth: isPad ? 700 : .infinity)
 
-                    // Core Information Details
+                    // Match Information
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Match Information")
                             .font(.system(size: 15, weight: .bold))
-
                         Divider()
-
                         Group {
                             InfoDetailRow(title: "Match Status", value: match.status.uppercased())
                                 .foregroundColor(match.isCurrentlyLive ? .red : .primary)
-
                             InfoDetailRow(title: "Date", value: match.matchDate)
                             InfoDetailRow(title: "Time", value: match.matchTime)
-
                             if !match.venue.isEmpty {
                                 InfoDetailRow(title: "Venue", value: match.venue)
                             }
@@ -99,21 +91,21 @@ struct FeaturedMatchDetailView: View {
                     .padding(.horizontal)
                     .frame(maxWidth: isPad ? 700 : .infinity)
 
-                    // Links Section Integration
+                    // Links
                     if match.hasAdditionalContent {
                         HStack(spacing: 12) {
                             if let l1 = match.link1, let url = cleanAndVerifyURL(l1) {
-                                TargetLinkButton(title: "Link 1", action: { 
+                                TargetLinkButton(title: "Link 1", action: {
                                     handleLinkTap(url: url)
                                 })
                             }
                             if let l2 = match.link2, let url = cleanAndVerifyURL(l2) {
-                                TargetLinkButton(title: "Link 2", action: { 
+                                TargetLinkButton(title: "Link 2", action: {
                                     handleLinkTap(url: url)
                                 })
                             }
                             if let l3 = match.link3, let url = cleanAndVerifyURL(l3) {
-                                TargetLinkButton(title: "Link 3", action: { 
+                                TargetLinkButton(title: "Link 3", action: {
                                     handleLinkTap(url: url)
                                 })
                             }
@@ -123,7 +115,7 @@ struct FeaturedMatchDetailView: View {
                         .frame(maxWidth: isPad ? 700 : .infinity)
                     }
 
-                    // Square Banner Ad below Link buttons, above Match Briefing
+                    // Square Banner
                     InlineBannerAdView(
                         adUnitID: AdMobManager.squareBannerAdUnitID,
                         adSize: .mediumRectangle
@@ -132,7 +124,7 @@ struct FeaturedMatchDetailView: View {
                     .padding(.top, 8)
                     .frame(maxWidth: isPad ? 700 : .infinity)
 
-                    // Match Briefing Section - below the square banner ad
+                    // Match Briefing
                     if match.hasMatchBriefing {
                         VStack(alignment: .leading, spacing: 12) {
                             HStack(spacing: 6) {
@@ -142,9 +134,7 @@ struct FeaturedMatchDetailView: View {
                                 Text("Match Briefing")
                                     .font(.system(size: 15, weight: .bold))
                             }
-
                             Divider()
-
                             Text(match.matchBriefing ?? "")
                                 .font(.system(size: 14))
                                 .foregroundColor(.primary)
@@ -156,10 +146,10 @@ struct FeaturedMatchDetailView: View {
                         .cornerRadius(14)
                         .padding(.horizontal)
                         .frame(maxWidth: isPad ? 700 : .infinity)
+                        .padding(.top, 8)
                     }
                 }
                 .padding(.vertical)
-                // iPad: center the entire content
                 .frame(maxWidth: .infinity)
             }
             .navigationTitle("Match Details")
@@ -168,7 +158,6 @@ struct FeaturedMatchDetailView: View {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Close") { dismiss() }
                 }
-
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
                         favoritesManager.toggleFavorite(match.id)
@@ -189,7 +178,6 @@ struct FeaturedMatchDetailView: View {
         }
     }
 
-    /// Handles link tap with interstitial logic
     private func handleLinkTap(url: URL) {
         let shouldShowAd = AdMobManager.shared.trackLinkTapAndShouldShowInterstitial()
         if shouldShowAd {
@@ -201,7 +189,6 @@ struct FeaturedMatchDetailView: View {
         }
     }
 
-    // Safely parse out string formats coming from Excel rows
     private func cleanAndVerifyURL(_ rawString: String) -> URL? {
         var clean = rawString.trimmingCharacters(in: .whitespacesAndNewlines)
         if clean.contains("src=") {
@@ -216,8 +203,6 @@ struct FeaturedMatchDetailView: View {
     }
 }
 
-// MARK: - Core Support Frameworks & Elements
-
 struct IdentifiableURL: Identifiable {
     let id = UUID()
     let url: URL
@@ -226,16 +211,11 @@ struct IdentifiableURL: Identifiable {
 struct InfoDetailRow: View {
     let title: String
     let value: String
-
     var body: some View {
         HStack {
-            Text(title)
-                .foregroundColor(.secondary)
-                .font(.system(size: 13))
+            Text(title).foregroundColor(.secondary).font(.system(size: 13))
             Spacer()
-            Text(value)
-                .fontWeight(.semibold)
-                .font(.system(size: 13))
+            Text(value).fontWeight(.semibold).font(.system(size: 13))
         }
         .padding(.vertical, 2)
     }
@@ -244,14 +224,11 @@ struct InfoDetailRow: View {
 struct TargetLinkButton: View {
     let title: String
     let action: () -> Void
-
     var body: some View {
         Button(action: action) {
             HStack {
-                Image(systemName: "play.tv.fill")
-                    .font(.system(size: 12))
-                Text(title)
-                    .font(.system(size: 14, weight: .bold))
+                Image(systemName: "play.tv.fill").font(.system(size: 12))
+                Text(title).font(.system(size: 14, weight: .bold))
             }
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
