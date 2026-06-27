@@ -23,7 +23,7 @@ struct EditorialView: View {
                         .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.top, 40)
                     } else {
-                        ForEach(Array(viewModel.editorialItems.enumerated()), id: \element.id) { index, article in
+                        ForEach(Array(viewModel.editorialItems.enumerated()), id: \.element.id) { index, article in
                             VStack(spacing: 16) {
                                 Button(action: {
                                     handleArticleTap(article: article, atIndex: index + 1)
@@ -143,7 +143,7 @@ struct EditorialDetailView: View {
                         .padding(.bottom, 4)
 
                     VStack(spacing: 14) {
-                        ForEach(Array(randomizedRelatedStories.enumerated()), id: \element.id) { index, story in
+                        ForEach(Array(randomizedRelatedStories.enumerated()), id: \.element.id) { index, story in
                             VStack(spacing: 14) {
                                 Button(action: {
                                     subSelectedArticle = story
@@ -184,7 +184,6 @@ struct EditorialDetailView: View {
                                 }
                                 .buttonStyle(PlainButtonStyle())
 
-                                // Only ONE banner ad in related stories section
                                 if index == 0 {
                                     InlineBannerAdView(
                                         adUnitID: AdMobManager.bannerAdUnitID,

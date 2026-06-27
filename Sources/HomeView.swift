@@ -20,13 +20,13 @@ struct HomeView: View {
 
     var filteredFixturesFeed: [FeaturedMatch] {
         if searchText.isEmpty {
-            return viewModel.featuredMatches.filter { match in
-                let formatter = DateFormatter()
-                formatter.dateFormat = "yyyy-MM-dd"
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            let filtered = viewModel.featuredMatches.filter { match in
                 guard let matchDateObj = formatter.date(from: match.matchDate) else { return false }
                 return Calendar.current.isDate(matchDateObj, inSameDayAs: targetFilteringDate)
             }
-            .sorted { $0.matchTime < $1.matchTime }
+            return filtered.sorted { $0.matchTime < $1.matchTime }
         } else {
             let query = searchText.lowercased()
             return viewModel.featuredMatches.filter { match in
@@ -58,7 +58,7 @@ struct HomeView: View {
                     // Date Picker
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 10) {
-                            ForEach(-3...7, id: \self) { day in
+                            ForEach(-3...7, id: \.self) { day in
                                 DateBubbleView(day: day, isSelected: selectedDate == day) {
                                     selectedDate = day
                                 }
@@ -101,84 +101,7 @@ struct HomeView: View {
                     }
 
                     // Fixtures Feed
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text(searchText.isEmpty ? "Fixtures Feed" : "Search Results")
-                            .font(.system(size: 16, weight: .bold))
-                            .padding(.horizontal)
-
-                        if filteredFixturesFeed.isEmpty {
-                            VStack(spacing: 8) {
-                                Image(systemName: "sportscourt")
-                                    .font(.title3)
-                                    .foregroundColor(.secondary)
-                                Text("No fixtures scheduled for this day")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 30)
-                        } else if searchText.isEmpty {
-                            LazyVStack(spacing: 16) {
-                                ForEach(Array(groupedFixtures.enumerated()), id: \offset) { groupIndex, group in
-                                    VStack(alignment: .leading, spacing: 10) {
-                                        HStack(spacing: 6) {
-                                            Image(systemName: "shield.fill")
-                                                .font(.system(size: 10, weight: .bold))
-                                                .foregroundColor(.green)
-                                            Text(group.competition.uppercased())
-                                                .font(.system(size: 12, weight: .black))
-                                                .foregroundColor(.green)
-                                                .tracking(0.5)
-                                            Rectangle()
-                                                .fill(Color.green.opacity(0.3))
-                                                .frame(height: 1)
-                                        }
-                                        .padding(.horizontal)
-
-                                        VStack(spacing: 10) {
-                                            ForEach(Array(group.matches.enumerated()), id: \element.id) { matchIndex, match in
-                                                VStack(spacing: 10) {
-                                                    MatchCardView(match: match, onTap: {
-                                                        handleFixtureTap(match: match)
-                                                    })
-                                                    .padding(.horizontal)
-
-                                                    let globalIndex = groupIndex * 100 + matchIndex
-                                                    if (globalIndex + 1) % 3 == 0 {
-                                                        InlineBannerAdView(
-                                                            adUnitID: AdMobManager.bannerAdUnitID,
-                                                            adSize: .standard
-                                                        )
-                                                        .padding(.horizontal)
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        } else {
-                            LazyVStack(spacing: 10) {
-                                ForEach(Array(filteredFixturesFeed.enumerated()), id: \element.id) { index, match in
-                                    VStack(spacing: 10) {
-                                        MatchCardView(match: match, onTap: {
-                                            handleFixtureTap(match: match)
-                                        })
-                                        .padding(.horizontal)
-
-                                        if (index + 1) % 3 == 0 && index != filteredFixturesFeed.count - 1 {
-                                            InlineBannerAdView(
-                                                adUnitID: AdMobManager.bannerAdUnitID,
-                                                adSize: .standard
-                                            )
-                                            .padding(.horizontal)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .padding(.top, 12)
+                    fixturesFeedSection
                 }
                 .padding(.vertical, 12)
             }
@@ -191,6 +114,100 @@ struct HomeView: View {
             }
             .refreshable {
                 await viewModel.loadCMSData()
+            }
+        }
+    }
+
+    // Extracted to help compiler type-check
+    private var fixturesFeedSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(searchText.isEmpty ? "Fixtures Feed" : "Search Results")
+                .font(.system(size: 16, weight: .bold))
+                .padding(.horizontal)
+
+            if filteredFixturesFeed.isEmpty {
+                emptyFixturesView
+            } else if searchText.isEmpty {
+                groupedFixturesView
+            } else {
+                searchResultsView
+            }
+        }
+        .padding(.top, 12)
+    }
+
+    private var emptyFixturesView: some View {
+        VStack(spacing: 8) {
+            Image(systemName: "sportscourt")
+                .font(.title3)
+                .foregroundColor(.secondary)
+            Text("No fixtures scheduled for this day")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 30)
+    }
+
+    private var groupedFixturesView: some View {
+        LazyVStack(spacing: 16) {
+            ForEach(Array(groupedFixtures.enumerated()), id: \.offset) { groupIndex, group in
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "shield.fill")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.green)
+                        Text(group.competition.uppercased())
+                            .font(.system(size: 12, weight: .black))
+                            .foregroundColor(.green)
+                            .tracking(0.5)
+                        Rectangle()
+                            .fill(Color.green.opacity(0.3))
+                            .frame(height: 1)
+                    }
+                    .padding(.horizontal)
+
+                    VStack(spacing: 10) {
+                        ForEach(Array(group.matches.enumerated()), id: \.element.id) { matchIndex, match in
+                            VStack(spacing: 10) {
+                                MatchCardView(match: match, onTap: {
+                                    handleFixtureTap(match: match)
+                                })
+                                .padding(.horizontal)
+
+                                let globalIndex = groupIndex * 100 + matchIndex
+                                if (globalIndex + 1) % 3 == 0 {
+                                    InlineBannerAdView(
+                                        adUnitID: AdMobManager.bannerAdUnitID,
+                                        adSize: .standard
+                                    )
+                                    .padding(.horizontal)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var searchResultsView: some View {
+        LazyVStack(spacing: 10) {
+            ForEach(Array(filteredFixturesFeed.enumerated()), id: \.element.id) { index, match in
+                VStack(spacing: 10) {
+                    MatchCardView(match: match, onTap: {
+                        handleFixtureTap(match: match)
+                    })
+                    .padding(.horizontal)
+
+                    if (index + 1) % 3 == 0 && index != filteredFixturesFeed.count - 1 {
+                        InlineBannerAdView(
+                            adUnitID: AdMobManager.bannerAdUnitID,
+                            adSize: .standard
+                        )
+                        .padding(.horizontal)
+                    }
+                }
             }
         }
     }
