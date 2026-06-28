@@ -47,7 +47,6 @@ struct HomeView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 0) {
-                    // Banner Ad directly under nav bar / search area
                     InlineBannerAdView(
                         adUnitID: AdMobManager.bannerAdUnitID,
                         adSize: .standard
@@ -55,7 +54,6 @@ struct HomeView: View {
                     .padding(.horizontal)
                     .padding(.top, 4)
 
-                    // Date Picker
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 10) {
                             ForEach(-3...7, id: \.self) { day in
@@ -68,7 +66,6 @@ struct HomeView: View {
                     }
                     .padding(.top, 12)
 
-                    // Latest Results
                     if !finishedResultsMatches.isEmpty && searchText.isEmpty {
                         VStack(alignment: .leading, spacing: 8) {
                             HStack(spacing: 6) {
@@ -100,7 +97,6 @@ struct HomeView: View {
                         .padding(.top, 12)
                     }
 
-                    // Fixtures Feed
                     fixturesFeedSection
                 }
                 .padding(.vertical, 12)
@@ -118,7 +114,6 @@ struct HomeView: View {
         }
     }
 
-    // Extracted to help compiler type-check
     private var fixturesFeedSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(searchText.isEmpty ? "Fixtures Feed" : "Search Results")
