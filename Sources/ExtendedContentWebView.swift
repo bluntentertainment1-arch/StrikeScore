@@ -36,10 +36,12 @@ struct ExtendedContentWebView: View {
                     .font(.system(size: 15, weight: .bold, design: .rounded))
                 Spacer()
 
-                Button(action: { 
+                Button(action: {
                     dismiss()
                     // Trigger interstitial on close
-                    onDismiss?()
+                    AdMobManager.shared.showLinkInterstitialIfAllowed {
+                        self.onDismiss?()
+                    }
                 }) {
                     Text("Close")
                         .fontWeight(.bold)
