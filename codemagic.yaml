@@ -59,7 +59,9 @@ workflows:
       
       - name: Increment build number
         script: |
-          agvtool new-version -all "$CM_BUILD_NUMBER"
+          BUILD_NUMBER=$(date +%s)
+          agvtool new-version -all "$BUILD_NUMBER"
+          echo "Build number set to: $BUILD_NUMBER"
           
       - name: Build iOS IPA
         script: |
