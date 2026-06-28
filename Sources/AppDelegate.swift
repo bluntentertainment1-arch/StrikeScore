@@ -23,6 +23,16 @@ class AppDelegate: NSObject, UIApplicationDelegate {
             AppLogger.shared.log("ATT status on launch: \(status.rawValue)")
         }
         
+        // 4. Preload all ads after SDK is ready (2s delay ensures initialization)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            AdMobManager.shared.preloadAllAds()
+        }
+        
         return true
+    }
+    
+    // MARK: - Portrait Orientation Lock (app-wide)
+    func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
+        return .portrait
     }
 }
