@@ -122,8 +122,12 @@ struct FixturesView: View {
     }
 
     private func handleMatchTap(match: FeaturedMatch) {
-        // Show interstitial on first tap per session, then every 4 minutes
-        AdMobManager.shared.showInterstitialIfAllowed {
+        let shouldShowAd = AdMobManager.shared.trackFixtureTapAndShouldShowInterstitial()
+        if shouldShowAd {
+            AdMobManager.shared.showFixtureInterstitialIfAllowed {
+                selectedMatch = match
+            }
+        } else {
             selectedMatch = match
         }
     }
@@ -174,7 +178,7 @@ struct FixtureCard: View {
                         .font(.caption2.bold())
                         .foregroundColor(.green)
 
-                    Text("\(match.matchDate) â¢ \(match.matchTime)")
+                    Text("\(match.matchDate) • \(match.matchTime)")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
