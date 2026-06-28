@@ -1,6 +1,5 @@
 import SwiftUI
 import WebKit
-import Combine
 
 class WebContentStorage: ObservableObject {
     var webView: WKWebView?
@@ -53,11 +52,9 @@ struct ExtendedContentWebView: View {
         }
         .background(Color(.systemBackground))
         .onAppear {
-            // Unlock orientation for this view (allows landscape for video)
             unlockOrientationForVideo()
         }
         .onDisappear {
-            // Lock back to portrait when leaving
             lockOrientationToPortrait()
         }
         .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
@@ -67,15 +64,11 @@ struct ExtendedContentWebView: View {
     }
 
     private func unlockOrientationForVideo() {
-        // Temporarily allow all orientations for video playback
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
-            // The AppDelegate handles the actual lock, but we can request orientation changes
-            // For embedded players, this is handled by the WKWebView's allowsInlineMediaPlayback
-        }
+        // WKWebView handles video orientation via allowsInlineMediaPlayback
+        // The AppDelegate orientation lock is the primary control
     }
 
     private func lockOrientationToPortrait() {
-        // Force back to portrait
         if #available(iOS 16.0, *) {
             if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
                 windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait))
@@ -138,7 +131,6 @@ struct SecureWebEngineRepresentable: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: WKWebView, context: Context) {
-        // CRITICAL: Do NOT reload on update - only if URL actually changed
         if uiView.url?.absoluteString != url.absoluteString {
             uiView.load(URLRequest(url: url))
         }
