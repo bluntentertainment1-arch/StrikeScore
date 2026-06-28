@@ -176,7 +176,7 @@ struct FeaturedMatchDetailView: View {
     private func handleLinkTap(url: URL) {
         let shouldShowAd = AdMobManager.shared.trackLinkTapAndShouldShowInterstitial()
         if shouldShowAd {
-            AdMobManager.shared.showInterstitialIfAllowed {
+            AdMobManager.shared.showLinkInterstitialIfAllowed {
                 self.displayTargetURL = url
             }
         } else {
