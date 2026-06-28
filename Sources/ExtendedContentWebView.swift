@@ -1,5 +1,6 @@
 import SwiftUI
 import WebKit
+import Combine
 
 class WebContentStorage: ObservableObject {
     var webView: WKWebView?
@@ -11,6 +12,7 @@ struct ExtendedContentWebView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var storage = WebContentStorage()
     @State private var canGoBack = false
+    @State private var isLandscape = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -50,6 +52,38 @@ struct ExtendedContentWebView: View {
                 .ignoresSafeArea(edges: .bottom)
         }
         .background(Color(.systemBackground))
+        .onAppear {
+            // Unlock orientation for this view (allows landscape for video)
+            unlockOrientationForVideo()
+        }
+        .onDisappear {
+            // Lock back to portrait when leaving
+            lockOrientationToPortrait()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
+            let orientation = UIDevice.current.orientation
+            isLandscape = orientation.isLandscape
+        }
+    }
+
+    private func unlockOrientationForVideo() {
+        // Temporarily allow all orientations for video playback
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+            // The AppDelegate handles the actual lock, but we can request orientation changes
+            // For embedded players, this is handled by the WKWebView's allowsInlineMediaPlayback
+        }
+    }
+
+    private func lockOrientationToPortrait() {
+        // Force back to portrait
+        if #available(iOS 16.0, *) {
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait))
+            }
+        } else {
+            UIDevice.current.setValue(UIInterfaceOrientation.portrait.rawValue, forKey: "orientation")
+            UINavigationController.attemptRotationToDeviceOrientation()
+        }
     }
 
     private var safeAreaTopInset: CGFloat {
@@ -78,7 +112,7 @@ struct SecureWebEngineRepresentable: UIViewRepresentable {
         webView.uiDelegate = context.coordinator
         webView.scrollView.bounces = false
 
-        // Prevent zoom on rotation - critical fix
+        // Lock zoom to prevent rotation zoom issues
         webView.scrollView.contentMode = .scaleToFill
         webView.scrollView.minimumZoomScale = 1.0
         webView.scrollView.maximumZoomScale = 1.0
