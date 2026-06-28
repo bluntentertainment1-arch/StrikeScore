@@ -42,16 +42,6 @@ struct ContentView: View {
             }
             .ignoresSafeArea()
         )
-        .onAppear {
-            AdMobManager.shared.loadAllAds()
-            AdMobManager.shared.startRewardedPromptTimer()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
-            AdMobManager.shared.stopRewardedPromptTimer()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
-            AdMobManager.shared.startRewardedPromptTimer()
-        }
     }
 
     private var iphoneLayout: some View {
