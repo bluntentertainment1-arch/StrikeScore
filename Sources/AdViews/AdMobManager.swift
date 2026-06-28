@@ -39,10 +39,11 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
     // MARK: - Returning Ad Tracking
     private var wasInBackground = false
 
-    // MARK: - Ad Loading Completion Handlers (for waiting when ad isn't ready)
+    // MARK: - Ad Loading Completion Handlers
     private var interstitialLoadCompletion: (() -> Void)?
     private var returningInterstitialLoadCompletion: (() -> Void)?
-    private var rewardedLoadCompletion: (() -> Void)?
+    private var rewardedOnEarned: ((Int) -> Void)?
+    private var rewardedOnClose: (() -> Void)?
 
     private override init() {
         super.init()
@@ -108,7 +109,6 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
             ad.fullScreenContentDelegate = self
             self.interstitialAd = ad
             AppLogger.shared.log("Interstitial loaded successfully")
-            // If someone is waiting for this ad to load, show it now
             if let completion = self.interstitialLoadCompletion {
                 self.interstitialLoadCompletion = nil
                 self.showLoadedInterstitial(completion: completion)
@@ -118,18 +118,15 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
 
     // MARK: - Fixture Interstitial (waits for ad if not loaded)
     func showFixtureInterstitialIfAllowed(completion: @escaping () -> Void) {
-        // Check cooldown first
         if let lastTime = lastFixtureInterstitialTime {
             guard Date().timeIntervalSince(lastTime) >= fixtureCooldown else {
                 completion()
                 return
             }
         }
-        // If ad is ready, show it
         if interstitialAd != nil {
             showLoadedInterstitial(completion: completion)
         } else {
-            // Ad not ready - start loading and wait for it
             AppLogger.shared.log("Fixture interstitial not ready, waiting for load...")
             interstitialLoadCompletion = completion
             loadInterstitialAd()
@@ -205,7 +202,7 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
             AppLogger.shared.log("Returning interstitial loaded successfully")
             if let completion = self.returningInterstitialLoadCompletion {
                 self.returningInterstitialLoadCompletion = nil
-                self.showLoadedReturningInterstitial()
+                completion()
             }
         }
     }
@@ -288,9 +285,10 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
             ad.fullScreenContentDelegate = self
             self.rewardedAd = ad
             AppLogger.shared.log("Rewarded ad loaded successfully")
-            if let completion = self.rewardedLoadCompletion {
-                self.rewardedLoadCompletion = nil
-                self.showLoadedRewarded(onRewardEarned: completion.0, onClose: completion.1)
+            if let onEarned = self.rewardedOnEarned, let onClose = self.rewardedOnClose {
+                self.rewardedOnEarned = nil
+                self.rewardedOnClose = nil
+                self.showLoadedRewarded(onRewardEarned: onEarned, onClose: onClose)
             }
         }
     }
@@ -299,9 +297,9 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
         if let rewarded = rewardedAd {
             showLoadedRewarded(onRewardEarned: onRewardEarned, onClose: onClose)
         } else {
-            // Wait for ad to load
             AppLogger.shared.log("Rewarded ad not ready, waiting for load...")
-            rewardedLoadCompletion = (onRewardEarned, onClose)
+            rewardedOnEarned = onRewardEarned
+            rewardedOnClose = onClose
             loadRewardedAd()
         }
     }
