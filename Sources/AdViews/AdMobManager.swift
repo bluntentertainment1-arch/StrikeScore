@@ -34,7 +34,7 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
     // MARK: - Rewarded Prompt Timer
     private var rewardedPromptTimer: Timer?
     private var isRewardedPromptVisible = false
-    private let rewardedPromptInterval: TimeInterval = 300 // 5 minutes
+    private let rewardedPromptInterval: TimeInterval = 180 // 3 minutes (was 300)
 
     // MARK: - Returning Ad Tracking
     private var wasInBackground = false
@@ -159,7 +159,7 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
         }
     }
 
-    // MARK: - Link Interstitial (every link tap)
+    // MARK: - Link Interstitial (every 2nd link tap)
     func showLinkInterstitialIfAllowed(completion: @escaping () -> Void) {
         guard interstitialAd != nil else {
             loadInterstitialAd()
@@ -231,7 +231,7 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
         }
     }
 
-    // MARK: - Tracking Methods (just track, don't check cooldown here)
+    // MARK: - Tracking Methods
     @discardableResult
     func trackFixtureTapAndShouldShowInterstitial() -> Bool {
         fixtureTapCount += 1
@@ -254,7 +254,11 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
     @discardableResult
     func trackLinkTapAndShouldShowInterstitial() -> Bool {
         linkTapCount += 1
-        return true
+        if linkTapCount == 2 {
+            linkTapCount = 0
+            return true
+        }
+        return false
     }
 
     // MARK: - Rewarded Ad Engine
@@ -290,11 +294,12 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
                 self?.loadRewardedAd()
             }
-            onClose()
         } else {
+            // No ad loaded - try to load one and close
             loadRewardedAd()
-            onClose()
         }
+        // Always call onClose after presentation (ad handles its own dismissal)
+        onClose()
     }
 
     // MARK: - Rewarded Prompt Timer
@@ -303,7 +308,7 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
         rewardedPromptTimer = Timer.scheduledTimer(withTimeInterval: rewardedPromptInterval, repeats: true) { [weak self] _ in
             self?.triggerRewardedPrompt()
         }
-        AppLogger.shared.log("Rewarded prompt timer started (5 minute interval)")
+        AppLogger.shared.log("Rewarded prompt timer started (3 minute interval)")
     }
 
     func stopRewardedPromptTimer() {
