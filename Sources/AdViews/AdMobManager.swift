@@ -17,7 +17,7 @@ class AdMobManager: NSObject, UIAdaptivePresentationControllerDelegate, GADFullS
     // Interstitial frequency tracking
     private var lastInterstitialShowTime: Date?
     private var hasShownFirstInterstitialThisSession = false
-    private let interstitialCooldown: TimeInterval = 120 // 2 minutes (reduced from 4)
+    private let interstitialCooldown: TimeInterval = 120 // 2 minutes
 
     // MARK: - Tap Tracking for Conditional Interstitial Display
     private var fixtureTapCount = 0
@@ -28,13 +28,11 @@ class AdMobManager: NSObject, UIAdaptivePresentationControllerDelegate, GADFullS
     private var rewardedPromptTimer: Timer?
     private var isRewardedPromptVisible = false
     private let rewardedPromptInterval: TimeInterval = 300 // 5 minutes
-    private var appOpenTime: Date?
 
-    // MARK: - Returning Ad (App Open Ad)
-    private var appOpenAd: AppOpenAd?
-    private var isShowingAppOpenAd = false
-    private var lastAppOpenAdShowTime: Date?
-    private let appOpenAdCooldown: TimeInterval = 300 // 5 minutes between app open ads
+    // MARK: - Returning Ad (Interstitial as App Open substitute)
+    private var isShowingReturningAd = false
+    private var lastReturningAdShowTime: Date?
+    private let returningAdCooldown: TimeInterval = 300 // 5 minutes between returning ads
     private var wasInBackground = false
 
     private override init() {
@@ -64,69 +62,46 @@ class AdMobManager: NSObject, UIAdaptivePresentationControllerDelegate, GADFullS
     }
 
     @objc private func handleAppDidBecomeActive() {
-        // If returning from background after at least 3 seconds, show app open ad
         if wasInBackground {
             wasInBackground = false
-            // Small delay to let UI settle
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                self?.showAppOpenAdIfAllowed()
+                self?.showReturningAdIfAllowed()
             }
         }
         startRewardedPromptTimer()
     }
 
-    // MARK: - Preload All Ads (call this in AppDelegate or SceneDelegate after UI is ready)
+    // MARK: - Preload All Ads
     func preloadAllAds() {
-        appOpenTime = Date()
         loadInterstitialAd()
         loadRewardedAd()
-        loadAppOpenAd()
-        // Start timer after a small delay to ensure ads have time to load
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
             self?.startRewardedPromptTimer()
         }
     }
 
-    // MARK: - App Open Ad (Returning Ad)
-    func loadAppOpenAd() {
-        let request = Request()
-        AppOpenAd.load(
-            with: AdMobManager.interstitialAdUnitID, // Can reuse interstitial ID or use dedicated app open ID
-            request: request,
-            orientation: UIInterfaceOrientation.portrait
-        ) { [weak self] ad, error in
-            if let error = error {
-                AppLogger.shared.error("App Open Ad load error: \(error.localizedDescription)")
-                return
-            }
-            self?.appOpenAd = ad
-            self?.appOpenAd?.fullScreenContentDelegate = self
-            AppLogger.shared.log("App Open Ad loaded successfully")
-        }
-    }
+    // MARK: - Returning Ad (uses Interstitial as substitute for AppOpenAd)
+    func showReturningAdIfAllowed() {
+        guard !isShowingReturningAd else { return }
 
-    func showAppOpenAdIfAllowed() {
-        guard !isShowingAppOpenAd else { return }
-        guard let appOpenAd = appOpenAd else {
+        if let lastTime = lastReturningAdShowTime {
+            guard Date().timeIntervalSince(lastTime) >= returningAdCooldown else { return }
+        }
+
+        // Use existing interstitial logic for returning ad
+        if let interstitial = interstitialAd, canShowInterstitial {
+            guard let rootVC = getRootViewController() else { return }
+            isShowingReturningAd = true
+            interstitial.present(from: rootVC)
+            self.interstitialAd = nil
+            hasShownFirstInterstitialThisSession = true
+            lastInterstitialShowTime = Date()
+            lastReturningAdShowTime = Date()
+            loadInterstitialAd()
+        } else {
             // Try to load one if not available
-            loadAppOpenAd()
-            return
+            loadInterstitialAd()
         }
-
-        // Check cooldown
-        if let lastTime = lastAppOpenAdShowTime {
-            guard Date().timeIntervalSince(lastTime) >= appOpenAdCooldown else { return }
-        }
-
-        guard let rootVC = getRootViewController() else { return }
-
-        isShowingAppOpenAd = true
-        appOpenAd.present(from: rootVC)
-        self.appOpenAd = nil
-        lastAppOpenAdShowTime = Date()
-
-        // Preload next one
-        loadAppOpenAd()
     }
 
     // MARK: - Interstitial Ad Engine
@@ -135,7 +110,6 @@ class AdMobManager: NSObject, UIAdaptivePresentationControllerDelegate, GADFullS
         InterstitialAd.load(with: AdMobManager.interstitialAdUnitID, request: request) { [weak self] ad, error in
             if let error = error {
                 AppLogger.shared.error("Interstitial load error: \(error.localizedDescription)")
-                // Retry after delay
                 DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) { [weak self] in
                     self?.loadInterstitialAd()
                 }
@@ -163,20 +137,17 @@ class AdMobManager: NSObject, UIAdaptivePresentationControllerDelegate, GADFullS
             completion()
             return
         }
-
         if let interstitial = interstitialAd {
             interstitial.present(from: rootVC)
             self.interstitialAd = nil
             hasShownFirstInterstitialThisSession = true
             lastInterstitialShowTime = Date()
 
-            // Preload next one immediately
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
                 self?.loadInterstitialAd()
             }
             completion()
         } else {
-            // No ad ready, try to load one and complete
             loadInterstitialAd()
             completion()
         }
@@ -186,7 +157,6 @@ class AdMobManager: NSObject, UIAdaptivePresentationControllerDelegate, GADFullS
         if canShowInterstitial {
             showInterstitial(completion: completion)
         } else {
-            // If can't show but no ad loaded, try loading
             if interstitialAd == nil {
                 loadInterstitialAd()
             }
@@ -246,17 +216,14 @@ class AdMobManager: NSObject, UIAdaptivePresentationControllerDelegate, GADFullS
 
         if let rewarded = rewardedAd {
             rewarded.present(from: rootVC) {
-                let reward = rewarded.adReward
-                onRewardEarned(reward.amount.intValue)
+                onRewardEarned(rewarded.adReward.amount.intValue)
             }
             self.rewardedAd = nil
-            // Preload next one
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
                 self?.loadRewardedAd()
             }
             onClose()
         } else {
-            // No ad ready, try loading and close
             loadRewardedAd()
             onClose()
         }
@@ -265,7 +232,6 @@ class AdMobManager: NSObject, UIAdaptivePresentationControllerDelegate, GADFullS
     // MARK: - Rewarded Prompt Timer
     func startRewardedPromptTimer() {
         guard rewardedPromptTimer == nil else { return }
-        // First prompt after 5 minutes, then every 5 minutes
         rewardedPromptTimer = Timer.scheduledTimer(withTimeInterval: rewardedPromptInterval, repeats: true) { [weak self] _ in
             self?.triggerRewardedPrompt()
         }
@@ -279,7 +245,6 @@ class AdMobManager: NSObject, UIAdaptivePresentationControllerDelegate, GADFullS
     private func triggerRewardedPrompt() {
         guard !isRewardedPromptVisible else { return }
         guard rewardedAd != nil else {
-            // If no rewarded ad loaded, try to load one and skip this cycle
             loadRewardedAd()
             return
         }
@@ -306,8 +271,7 @@ class AdMobManager: NSObject, UIAdaptivePresentationControllerDelegate, GADFullS
     }
 
     func adDidDismissFullScreenContent(_ ad: GADFullScreenPresentingAd) {
-        isShowingAppOpenAd = false
-        // Preload next interstitial if this was one
+        isShowingReturningAd = false
         if ad is InterstitialAd {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
                 self?.loadInterstitialAd()
@@ -317,12 +281,9 @@ class AdMobManager: NSObject, UIAdaptivePresentationControllerDelegate, GADFullS
 
     func ad(_ ad: GADFullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
         AppLogger.shared.error("Ad failed to present: \(error.localizedDescription)")
-        isShowingAppOpenAd = false
-        // Try to reload
+        isShowingReturningAd = false
         if ad is InterstitialAd {
             loadInterstitialAd()
-        } else if ad is AppOpenAd {
-            loadAppOpenAd()
         }
     }
 
