@@ -8,29 +8,27 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
-        
+
         // 1. Initialize Firebase 
         FirebaseApp.configure()
         AppLogger.shared.log("App launched - Firebase Analytics initialized")
-        
+
         // 2. Configure AdMob
         MobileAds.shared.start() 
         AppLogger.shared.log("App launched - AdMob initialized")
-        
+
         // 3. Check ATT status on launch
         if #available(iOS 14, *) {
             let status = ATTrackingManager.trackingAuthorizationStatus
             AppLogger.shared.log("ATT status on launch: \(status.rawValue)")
         }
-        
-        // 4. Preload all ads after SDK is ready (2s delay ensures initialization)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            AdMobManager.shared.preloadAllAds()
-        }
-        
+
+        // 4. Preload all ads immediately after SDK is ready
+        AdMobManager.shared.preloadAllAds()
+
         return true
     }
-    
+
     // MARK: - Portrait Orientation Lock (app-wide)
     func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
         return .portrait
