@@ -43,7 +43,7 @@ struct RewardedAdPromptView: View {
                         alertMessage = "Thank you! You earned \(amount) points."
                         showingAlert = true
                     }, onClose: {
-                        dismissPrompt()
+                        // Dismiss is handled inside showRewarded after presentation
                     })
                 }) {
                     HStack(spacing: 8) {
