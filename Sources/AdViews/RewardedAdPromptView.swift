@@ -7,14 +7,11 @@ struct RewardedAdPromptView: View {
 
     var body: some View {
         ZStack {
-            // Semi-transparent backdrop (handled by parent VC, but keep for safety)
             Color.clear
                 .contentShape(Rectangle())
                 .onTapGesture { /* Prevent tap-through */ }
 
-            // Card
             VStack(spacing: 24) {
-                // Pulsing heart
                 ZStack {
                     Circle()
                         .fill(Color.green.opacity(0.15))
@@ -41,7 +38,6 @@ struct RewardedAdPromptView: View {
                     .lineSpacing(3)
                     .padding(.horizontal, 4)
 
-                // Watch Video Button
                 Button(action: {
                     AdMobManager.shared.showRewarded(onRewardEarned: { amount in
                         alertMessage = "Thank you! You earned \(amount) points."
@@ -71,7 +67,6 @@ struct RewardedAdPromptView: View {
                 }
                 .buttonStyle(PlainButtonStyle())
 
-                // Grayed-out cancel
                 Button(action: {
                     dismissPrompt()
                 }) {
@@ -103,7 +98,6 @@ struct RewardedAdPromptView: View {
 
     private func dismissPrompt() {
         AdMobManager.shared.setRewardedPromptVisible(false)
-        // Dismiss the modal
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
            let rootVC = windowScene.windows.first(where: { $0.isKeyWindow })?.rootViewController {
             rootVC.dismiss(animated: true)
