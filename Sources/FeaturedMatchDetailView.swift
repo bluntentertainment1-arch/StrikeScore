@@ -14,7 +14,6 @@ struct FeaturedMatchDetailView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 16) {
-                    // Scoreboard
                     VStack(spacing: 12) {
                         Text(match.competition)
                             .font(.system(size: 11, weight: .bold))
@@ -64,7 +63,6 @@ struct FeaturedMatchDetailView: View {
                     .padding(.horizontal)
                     .frame(maxWidth: isPad ? 700 : .infinity)
 
-                    // Match Information
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Match Information")
                             .font(.system(size: 15, weight: .bold))
@@ -91,7 +89,6 @@ struct FeaturedMatchDetailView: View {
                     .padding(.horizontal)
                     .frame(maxWidth: isPad ? 700 : .infinity)
 
-                    // Links
                     if match.hasAdditionalContent {
                         HStack(spacing: 12) {
                             if let l1 = match.link1, let url = cleanAndVerifyURL(l1) {
@@ -115,7 +112,6 @@ struct FeaturedMatchDetailView: View {
                         .frame(maxWidth: isPad ? 700 : .infinity)
                     }
 
-                    // Square Banner
                     InlineBannerAdView(
                         adUnitID: AdMobManager.squareBannerAdUnitID,
                         adSize: .mediumRectangle
@@ -124,7 +120,6 @@ struct FeaturedMatchDetailView: View {
                     .padding(.top, 8)
                     .frame(maxWidth: isPad ? 700 : .infinity)
 
-                    // Match Briefing
                     if match.hasMatchBriefing {
                         VStack(alignment: .leading, spacing: 12) {
                             HStack(spacing: 6) {
