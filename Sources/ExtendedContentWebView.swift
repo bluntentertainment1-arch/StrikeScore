@@ -8,6 +8,7 @@ class WebContentStorage: ObservableObject {
 
 struct ExtendedContentWebView: View {
     let url: URL
+    var onDismiss: (() -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
     @StateObject private var storage = WebContentStorage()
     @State private var canGoBack = false
@@ -35,7 +36,11 @@ struct ExtendedContentWebView: View {
                     .font(.system(size: 15, weight: .bold, design: .rounded))
                 Spacer()
 
-                Button(action: { dismiss() }) {
+                Button(action: { 
+                    dismiss()
+                    // Trigger interstitial on close
+                    onDismiss?()
+                }) {
                     Text("Close")
                         .fontWeight(.bold)
                         .foregroundColor(.green)
@@ -65,7 +70,6 @@ struct ExtendedContentWebView: View {
 
     private func unlockOrientationForVideo() {
         // WKWebView handles video orientation via allowsInlineMediaPlayback
-        // The AppDelegate orientation lock is the primary control
     }
 
     private func lockOrientationToPortrait() {
@@ -105,12 +109,10 @@ struct SecureWebEngineRepresentable: UIViewRepresentable {
         webView.uiDelegate = context.coordinator
         webView.scrollView.bounces = false
 
-        // Lock zoom to prevent rotation zoom issues
         webView.scrollView.contentMode = .scaleToFill
         webView.scrollView.minimumZoomScale = 1.0
         webView.scrollView.maximumZoomScale = 1.0
 
-        // Inject viewport meta to lock scale
         let viewportScript = """
         var meta = document.querySelector('meta[name="viewport"]');
         if (!meta) {
