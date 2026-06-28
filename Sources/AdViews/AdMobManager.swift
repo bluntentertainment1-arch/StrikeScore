@@ -1,9 +1,8 @@
 import SwiftUI
 import GoogleMobileAds
 import UIKit
-import Combine
 
-class AdMobManager: NSObject, UIAdaptivePresentationControllerDelegate, FullScreenContentDelegate {
+class AdMobManager: NSObject, FullScreenContentDelegate {
     static let shared = AdMobManager()
 
     static let bannerAdUnitID = "ca-app-pub-3940256099942544/2934735716"
@@ -11,15 +10,23 @@ class AdMobManager: NSObject, UIAdaptivePresentationControllerDelegate, FullScre
     static let interstitialAdUnitID = "ca-app-pub-3940256099942544/4411468910"
     static let squareBannerAdUnitID = "ca-app-pub-3940256099942544/2435281174"
 
+    // MARK: - Ad Instances
     private var interstitialAd: InterstitialAd?
+    private var returningInterstitialAd: InterstitialAd?
     private var rewardedAd: RewardedAd?
 
-    // Interstitial frequency tracking
-    private var lastInterstitialShowTime: Date?
-    private var hasShownFirstInterstitialThisSession = false
-    private let interstitialCooldown: TimeInterval = 120 // 2 minutes
+    // MARK: - Independent Cooldowns (each ad type has its own timer)
+    private var lastFixtureInterstitialTime: Date?
+    private var lastArticleInterstitialTime: Date?
+    private var lastLinkInterstitialTime: Date?
+    private var lastReturningAdTime: Date?
 
-    // MARK: - Tap Tracking for Conditional Interstitial Display
+    private let fixtureCooldown: TimeInterval = 60      // 1 min between fixture interstitials
+    private let articleCooldown: TimeInterval = 60      // 1 min between article interstitials
+    private let linkCooldown: TimeInterval = 30         // 30 sec between link interstitials
+    private let returningAdCooldown: TimeInterval = 300 // 5 min between returning ads
+
+    // MARK: - Tap Tracking
     private var fixtureTapCount = 0
     private var articleTapIndices: Set<Int> = []
     private var linkTapCount = 0
@@ -29,10 +36,7 @@ class AdMobManager: NSObject, UIAdaptivePresentationControllerDelegate, FullScre
     private var isRewardedPromptVisible = false
     private let rewardedPromptInterval: TimeInterval = 300 // 5 minutes
 
-    // MARK: - Returning Ad (Interstitial as App Open substitute)
-    private var isShowingReturningAd = false
-    private var lastReturningAdShowTime: Date?
-    private let returningAdCooldown: TimeInterval = 300 // 5 minutes between returning ads
+    // MARK: - Returning Ad Tracking
     private var wasInBackground = false
 
     private override init() {
@@ -55,7 +59,7 @@ class AdMobManager: NSObject, UIAdaptivePresentationControllerDelegate, FullScre
         NotificationCenter.default.removeObserver(self)
     }
 
-    // MARK: - App Lifecycle for Returning Ads
+    // MARK: - App Lifecycle
     @objc private func handleAppDidEnterBackground() {
         wasInBackground = true
         stopRewardedPromptTimer()
@@ -74,38 +78,13 @@ class AdMobManager: NSObject, UIAdaptivePresentationControllerDelegate, FullScre
     // MARK: - Preload All Ads
     func preloadAllAds() {
         loadInterstitialAd()
+        loadReturningInterstitialAd()
         loadRewardedAd()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
-            self?.startRewardedPromptTimer()
-        }
     }
 
-    // MARK: - Returning Ad (uses Interstitial as substitute for AppOpenAd)
-    func showReturningAdIfAllowed() {
-        guard !isShowingReturningAd else { return }
-
-        if let lastTime = lastReturningAdShowTime {
-            guard Date().timeIntervalSince(lastTime) >= returningAdCooldown else { return }
-        }
-
-        // Use existing interstitial logic for returning ad
-        if let interstitial = interstitialAd, canShowInterstitial {
-            guard let rootVC = getRootViewController() else { return }
-            isShowingReturningAd = true
-            interstitial.present(from: rootVC)
-            self.interstitialAd = nil
-            hasShownFirstInterstitialThisSession = true
-            lastInterstitialShowTime = Date()
-            lastReturningAdShowTime = Date()
-            loadInterstitialAd()
-        } else {
-            // Try to load one if not available
-            loadInterstitialAd()
-        }
-    }
-
-    // MARK: - Interstitial Ad Engine
+    // MARK: - Interstitial Ad (for user actions: fixtures, articles, links)
     func loadInterstitialAd() {
+        guard interstitialAd == nil else { return }
         let request = Request()
         InterstitialAd.load(with: AdMobManager.interstitialAdUnitID, request: request) { [weak self] ad, error in
             if let error = error {
@@ -122,17 +101,19 @@ class AdMobManager: NSObject, UIAdaptivePresentationControllerDelegate, FullScre
         }
     }
 
-    var canShowInterstitial: Bool {
-        if !hasShownFirstInterstitialThisSession {
-            return interstitialAd != nil
+    // MARK: - Fixture Interstitial (2nd tap)
+    func showFixtureInterstitialIfAllowed(completion: @escaping () -> Void) {
+        guard interstitialAd != nil else {
+            loadInterstitialAd()
+            completion()
+            return
         }
-        guard let lastTime = lastInterstitialShowTime else {
-            return interstitialAd != nil
+        if let lastTime = lastFixtureInterstitialTime {
+            guard Date().timeIntervalSince(lastTime) >= fixtureCooldown else {
+                completion()
+                return
+            }
         }
-        return Date().timeIntervalSince(lastTime) >= interstitialCooldown && interstitialAd != nil
-    }
-
-    func showInterstitial(completion: @escaping () -> Void) {
         guard let rootVC = getRootViewController() else {
             completion()
             return
@@ -140,12 +121,8 @@ class AdMobManager: NSObject, UIAdaptivePresentationControllerDelegate, FullScre
         if let interstitial = interstitialAd {
             interstitial.present(from: rootVC)
             self.interstitialAd = nil
-            hasShownFirstInterstitialThisSession = true
-            lastInterstitialShowTime = Date()
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-                self?.loadInterstitialAd()
-            }
+            lastFixtureInterstitialTime = Date()
+            loadInterstitialAd()
             completion()
         } else {
             loadInterstitialAd()
@@ -153,18 +130,108 @@ class AdMobManager: NSObject, UIAdaptivePresentationControllerDelegate, FullScre
         }
     }
 
-    func showInterstitialIfAllowed(completion: @escaping () -> Void) {
-        if canShowInterstitial {
-            showInterstitial(completion: completion)
-        } else {
-            if interstitialAd == nil {
-                loadInterstitialAd()
+    // MARK: - Article Interstitial (2nd, 4th, 7th article)
+    func showArticleInterstitialIfAllowed(completion: @escaping () -> Void) {
+        guard interstitialAd != nil else {
+            loadInterstitialAd()
+            completion()
+            return
+        }
+        if let lastTime = lastArticleInterstitialTime {
+            guard Date().timeIntervalSince(lastTime) >= articleCooldown else {
+                completion()
+                return
             }
+        }
+        guard let rootVC = getRootViewController() else {
+            completion()
+            return
+        }
+        if let interstitial = interstitialAd {
+            interstitial.present(from: rootVC)
+            self.interstitialAd = nil
+            lastArticleInterstitialTime = Date()
+            loadInterstitialAd()
+            completion()
+        } else {
+            loadInterstitialAd()
             completion()
         }
     }
 
-    // MARK: - Conditional Interstitial Triggers
+    // MARK: - Link Interstitial (every link tap)
+    func showLinkInterstitialIfAllowed(completion: @escaping () -> Void) {
+        guard interstitialAd != nil else {
+            loadInterstitialAd()
+            completion()
+            return
+        }
+        if let lastTime = lastLinkInterstitialTime {
+            guard Date().timeIntervalSince(lastTime) >= linkCooldown else {
+                completion()
+                return
+            }
+        }
+        guard let rootVC = getRootViewController() else {
+            completion()
+            return
+        }
+        if let interstitial = interstitialAd {
+            interstitial.present(from: rootVC)
+            self.interstitialAd = nil
+            lastLinkInterstitialTime = Date()
+            loadInterstitialAd()
+            completion()
+        } else {
+            loadInterstitialAd()
+            completion()
+        }
+    }
+
+    // MARK: - Returning Interstitial Ad (separate pool for app-open/returning ads)
+    func loadReturningInterstitialAd() {
+        guard returningInterstitialAd == nil else { return }
+        let request = Request()
+        InterstitialAd.load(with: AdMobManager.interstitialAdUnitID, request: request) { [weak self] ad, error in
+            if let error = error {
+                AppLogger.shared.error("Returning interstitial load error: \(error.localizedDescription)")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) { [weak self] in
+                    self?.loadReturningInterstitialAd()
+                }
+                return
+            }
+            guard let self = self, let ad = ad else { return }
+            ad.fullScreenContentDelegate = self
+            self.returningInterstitialAd = ad
+            AppLogger.shared.log("Returning interstitial loaded successfully")
+        }
+    }
+
+    func showReturningAdIfAllowed() {
+        guard returningInterstitialAd != nil else {
+            loadReturningInterstitialAd()
+            return
+        }
+        if let lastTime = lastReturningAdTime {
+            guard Date().timeIntervalSince(lastTime) >= returningAdCooldown else {
+                if returningInterstitialAd == nil {
+                    loadReturningInterstitialAd()
+                }
+                return
+            }
+        }
+        guard let rootVC = getRootViewController() else { return }
+        if let interstitial = returningInterstitialAd {
+            interstitial.present(from: rootVC)
+            self.returningInterstitialAd = nil
+            lastReturningAdTime = Date()
+            loadReturningInterstitialAd()
+        } else {
+            loadReturningInterstitialAd()
+        }
+    }
+
+    // MARK: - Tracking Methods (just track, don't check cooldown here)
     @discardableResult
     func trackFixtureTapAndShouldShowInterstitial() -> Bool {
         fixtureTapCount += 1
@@ -192,6 +259,7 @@ class AdMobManager: NSObject, UIAdaptivePresentationControllerDelegate, FullScre
 
     // MARK: - Rewarded Ad Engine
     func loadRewardedAd() {
+        guard rewardedAd == nil else { return }
         let request = Request()
         RewardedAd.load(with: AdMobManager.rewardedAdUnitID, request: request) { [weak self] ad, error in
             if let error = error {
@@ -231,10 +299,11 @@ class AdMobManager: NSObject, UIAdaptivePresentationControllerDelegate, FullScre
 
     // MARK: - Rewarded Prompt Timer
     func startRewardedPromptTimer() {
-        guard rewardedPromptTimer == nil else { return }
+        stopRewardedPromptTimer()
         rewardedPromptTimer = Timer.scheduledTimer(withTimeInterval: rewardedPromptInterval, repeats: true) { [weak self] _ in
             self?.triggerRewardedPrompt()
         }
+        AppLogger.shared.log("Rewarded prompt timer started (5 minute interval)")
     }
 
     func stopRewardedPromptTimer() {
@@ -245,6 +314,7 @@ class AdMobManager: NSObject, UIAdaptivePresentationControllerDelegate, FullScre
     private func triggerRewardedPrompt() {
         guard !isRewardedPromptVisible else { return }
         guard rewardedAd != nil else {
+            AppLogger.shared.log("Rewarded prompt: no ad loaded, attempting reload")
             loadRewardedAd()
             return
         }
@@ -258,6 +328,7 @@ class AdMobManager: NSObject, UIAdaptivePresentationControllerDelegate, FullScre
             promptVC.view.backgroundColor = UIColor.black.withAlphaComponent(0.6)
             self.isRewardedPromptVisible = true
             rootVC.present(promptVC, animated: true)
+            AppLogger.shared.log("Rewarded prompt presented")
         }
     }
 
@@ -271,19 +342,21 @@ class AdMobManager: NSObject, UIAdaptivePresentationControllerDelegate, FullScre
     }
 
     func adDidDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
-        isShowingReturningAd = false
-        if ad is InterstitialAd {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                self?.loadInterstitialAd()
-            }
+        if ad === interstitialAd {
+            loadInterstitialAd()
+        } else if ad === returningInterstitialAd {
+            loadReturningInterstitialAd()
         }
     }
 
     func ad(_ ad: FullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
         AppLogger.shared.error("Ad failed to present: \(error.localizedDescription)")
-        isShowingReturningAd = false
-        if ad is InterstitialAd {
+        if ad === interstitialAd {
+            interstitialAd = nil
             loadInterstitialAd()
+        } else if ad === returningInterstitialAd {
+            returningInterstitialAd = nil
+            loadReturningInterstitialAd()
         }
     }
 
