@@ -210,7 +210,7 @@ struct HomeView: View {
     private func handleFixtureTap(match: FeaturedMatch) {
         let shouldShowAd = AdMobManager.shared.trackFixtureTapAndShouldShowInterstitial()
         if shouldShowAd {
-            AdMobManager.shared.showInterstitialIfAllowed {
+            AdMobManager.shared.showFixtureInterstitialIfAllowed {
                 self.selectedMatch = match
             }
         } else {
