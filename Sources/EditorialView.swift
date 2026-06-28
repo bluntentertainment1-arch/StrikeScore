@@ -73,7 +73,7 @@ struct EditorialView: View {
     private func handleArticleTap(article: EditorialItem, atIndex index: Int) {
         let shouldShowAd = AdMobManager.shared.trackArticleTap(at: index)
         if shouldShowAd {
-            AdMobManager.shared.showInterstitialIfAllowed {
+            AdMobManager.shared.showArticleInterstitialIfAllowed {
                 self.selectedArticle = article
             }
         } else {
