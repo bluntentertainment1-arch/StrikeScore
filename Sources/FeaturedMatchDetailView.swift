@@ -193,7 +193,7 @@ struct FeaturedMatchDetailView: View {
     private func cleanAndVerifyURL(_ rawString: String) -> URL? {
         var clean = rawString.trimmingCharacters(in: .whitespacesAndNewlines)
         if clean.contains("src=") {
-            let pattern = "src=\"([^"]+)\""
+            let pattern = #"src="([^"]+)""#
             if let regex = try? NSRegularExpression(pattern: pattern, options: []),
                let match = regex.firstMatch(in: clean, options: [], range: NSRange(clean.startIndex..., in: clean)),
                let range = Range(match.range(at: 1), in: clean) {
