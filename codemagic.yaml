@@ -59,7 +59,7 @@ workflows:
       
       - name: Increment build number
         script: |
-          agvtool new-version -all $(($BUILD_NUMBER + 100))
+          agvtool new-version -all $(($BUILD_NUMBER + 102))
           
       - name: Build iOS IPA
         script: |
