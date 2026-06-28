@@ -3,7 +3,7 @@ import GoogleMobileAds
 import UIKit
 import Combine
 
-class AdMobManager: NSObject, UIAdaptivePresentationControllerDelegate, GADFullScreenContentDelegate {
+class AdMobManager: NSObject, UIAdaptivePresentationControllerDelegate, FullScreenContentDelegate {
     static let shared = AdMobManager()
 
     static let bannerAdUnitID = "ca-app-pub-3940256099942544/2934735716"
@@ -265,12 +265,12 @@ class AdMobManager: NSObject, UIAdaptivePresentationControllerDelegate, GADFullS
         isRewardedPromptVisible = visible
     }
 
-    // MARK: - GADFullScreenContentDelegate
-    func adDidRecordImpression(_ ad: GADFullScreenPresentingAd) {
+    // MARK: - FullScreenContentDelegate
+    func adDidRecordImpression(_ ad: FullScreenPresentingAd) {
         AppLogger.shared.log("Ad impression recorded")
     }
 
-    func adDidDismissFullScreenContent(_ ad: GADFullScreenPresentingAd) {
+    func adDidDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
         isShowingReturningAd = false
         if ad is InterstitialAd {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
@@ -279,7 +279,7 @@ class AdMobManager: NSObject, UIAdaptivePresentationControllerDelegate, GADFullS
         }
     }
 
-    func ad(_ ad: GADFullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
+    func ad(_ ad: FullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
         AppLogger.shared.error("Ad failed to present: \(error.localizedDescription)")
         isShowingReturningAd = false
         if ad is InterstitialAd {
