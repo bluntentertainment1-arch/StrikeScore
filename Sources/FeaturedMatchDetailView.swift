@@ -167,19 +167,25 @@ struct FeaturedMatchDetailView: View {
                 get: { displayTargetURL != nil ? IdentifiableURL(url: displayTargetURL!) : nil },
                 set: { displayTargetURL = $0?.url }
             )) { identifiable in
-                ExtendedContentWebView(url: identifiable.url)
-                    .ignoresSafeArea()
+                ExtendedContentWebView(url: identifiable.url, onDismiss: {
+                    // Show interstitial when user closes the stream
+                    AdMobManager.shared.showLinkInterstitialIfAllowed { }
+                })
+                .ignoresSafeArea()
             }
         }
     }
 
     private func handleLinkTap(url: URL) {
+        // Track link taps - interstitial shows on 2nd tap or on stream close
         let shouldShowAd = AdMobManager.shared.trackLinkTapAndShouldShowInterstitial()
         if shouldShowAd {
+            // On 2nd link tap, show interstitial THEN open stream
             AdMobManager.shared.showLinkInterstitialIfAllowed {
                 self.displayTargetURL = url
             }
         } else {
+            // First tap - open stream directly, ad will show on close
             self.displayTargetURL = url
         }
     }
