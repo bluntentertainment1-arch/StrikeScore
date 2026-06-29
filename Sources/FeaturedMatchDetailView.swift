@@ -177,15 +177,8 @@ struct FeaturedMatchDetailView: View {
     }
 
     private func handleLinkTap(url: URL) {
-        // Track link taps - interstitial shows on 2nd tap or on stream close
-        let shouldShowAd = AdMobManager.shared.trackLinkTap()
-        if shouldShowAd {
-            // On 2nd link tap, show interstitial THEN open stream
-            AdMobManager.shared.showLinkInterstitialIfAllowed {
-                self.displayTargetURL = url
-            }
-        } else {
-            // First tap - open stream directly, ad will show on close
+        // Show interstitial on EVERY link tap (links are rare events)
+        AdMobManager.shared.showLinkInterstitialIfAllowed {
             self.displayTargetURL = url
         }
     }
@@ -193,7 +186,7 @@ struct FeaturedMatchDetailView: View {
     private func cleanAndVerifyURL(_ rawString: String) -> URL? {
         var clean = rawString.trimmingCharacters(in: .whitespacesAndNewlines)
         if clean.contains("src=") {
-            let pattern = "src=\"([^\"]+)\""
+            let pattern = #"src="([^"]+)""#
             if let regex = try? NSRegularExpression(pattern: pattern, options: []),
                let match = regex.firstMatch(in: clean, options: [], range: NSRange(clean.startIndex..., in: clean)),
                let range = Range(match.range(at: 1), in: clean) {
