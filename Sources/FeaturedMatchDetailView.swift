@@ -167,10 +167,7 @@ struct FeaturedMatchDetailView: View {
                 get: { displayTargetURL != nil ? IdentifiableURL(url: displayTargetURL!) : nil },
                 set: { displayTargetURL = $0?.url }
             )) { identifiable in
-                ExtendedContentWebView(url: identifiable.url, onDismiss: {
-                    // Show interstitial when user closes the stream
-                    AdMobManager.shared.showLinkInterstitialIfAllowed { }
-                })
+                ExtendedContentWebView(url: identifiable.url, onDismiss: { })
                 .ignoresSafeArea()
             }
         }
