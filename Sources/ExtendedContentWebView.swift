@@ -36,11 +36,13 @@ struct ExtendedContentWebView: View {
                     .font(.system(size: 15, weight: .bold, design: .rounded))
                 Spacer()
 
+                // FIX #3: Show ad FIRST, then dismiss
                 Button(action: {
-                    dismiss()
-                    // Trigger interstitial on close
                     AdMobManager.shared.showLinkInterstitialIfAllowed {
-                        self.onDismiss?()
+                        dismiss()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            self.onDismiss?()
+                        }
                     }
                 }) {
                     Text("Close")
