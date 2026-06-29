@@ -39,6 +39,7 @@ struct ExtendedContentWebView: View {
                 // FIX #2: Use dedicated close interstitial, then dismiss
                 Button(action: {
                     AdMobManager.shared.showCloseInterstitialIfAllowed {
+                        lockOrientationToPortrait()
                         dismiss()
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                             self.onDismiss?()
@@ -63,9 +64,8 @@ struct ExtendedContentWebView: View {
         .onAppear {
             unlockOrientationForVideo()
         }
-        .onDisappear {
-            lockOrientationToPortrait()
-        }
+        // NOTE: Do NOT lock portrait in onDisappear — it breaks video full-screen rotation.
+        // Portrait is only locked when the user explicitly taps Close.
         .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
             let orientation = UIDevice.current.orientation
             isLandscape = orientation.isLandscape
@@ -73,7 +73,16 @@ struct ExtendedContentWebView: View {
     }
 
     private func unlockOrientationForVideo() {
-        // WKWebView handles video orientation via allowsInlineMediaPlayback
+        // Allow all orientations so WKWebView videos can enter native full-screen landscape.
+        // The native AVPlayerViewController handles its own rotation.
+        if #available(iOS 16.0, *) {
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+                windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: [.portrait, .landscapeLeft, .landscapeRight]))
+            }
+        } else {
+            UIDevice.current.setValue(UIInterfaceOrientation.unknown.rawValue, forKey: "orientation")
+            UINavigationController.attemptRotationToDeviceOrientation()
+        }
     }
 
     private func lockOrientationToPortrait() {
@@ -105,7 +114,12 @@ struct SecureWebEngineRepresentable: UIViewRepresentable {
         }
 
         let configuration = WKWebViewConfiguration()
+        // allowsInlineMediaPlayback = true lets videos start inline,
+        // but the native full-screen button still works and can rotate to landscape
+        // because we unlock orientations in onAppear.
         configuration.allowsInlineMediaPlayback = true
+        configuration.allowsPictureInPictureMediaPlayback = true
+        configuration.allowsAirPlayForMediaPlayback = true
         configuration.mediaTypesRequiringUserActionForPlayback = []
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
@@ -117,6 +131,7 @@ struct SecureWebEngineRepresentable: UIViewRepresentable {
         webView.scrollView.minimumZoomScale = 1.0
         webView.scrollView.maximumZoomScale = 1.0
 
+        // Viewport + video full-screen helper script
         let viewportScript = """
         var meta = document.querySelector('meta[name="viewport"]');
         if (!meta) {
@@ -125,6 +140,13 @@ struct SecureWebEngineRepresentable: UIViewRepresentable {
             document.getElementsByTagName('head')[0].appendChild(meta);
         }
         meta.content = 'width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no';
+        
+        // Ensure video elements allow native full-screen on iOS
+        document.querySelectorAll('video').forEach(function(v) {
+            v.setAttribute('playsinline', 'true');
+            v.setAttribute('webkit-playsinline', 'true');
+            v.style.objectFit = 'contain';
+        });
         """
         let userScript = WKUserScript(source: viewportScript, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
         configuration.userContentController.addUserScript(userScript)
