@@ -1,4 +1,4 @@
-import SwiftUI
+limport SwiftUI
 import WebKit
 
 class WebContentStorage: ObservableObject {
@@ -62,8 +62,6 @@ struct ExtendedContentWebView: View {
         .onAppear {
             unlockOrientationForVideo()
         }
-        // NOTE: Do NOT lock portrait in onDisappear — it breaks video full-screen rotation.
-        // Portrait is only locked when the user explicitly taps Close.
         .onReceive(NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification)) { _ in
             let orientation = UIDevice.current.orientation
             isLandscape = orientation.isLandscape
@@ -71,7 +69,6 @@ struct ExtendedContentWebView: View {
     }
 
     private func unlockOrientationForVideo() {
-        // Allow all orientations so WKWebView videos can enter native full-screen landscape.
         if #available(iOS 16.0, *) {
             if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
                 windowScene.requestGeometryUpdate(.iOS(interfaceOrientations: [.portrait, .landscapeLeft, .landscapeRight]))
@@ -126,8 +123,6 @@ struct SecureWebEngineRepresentable: UIViewRepresentable {
         webView.scrollView.minimumZoomScale = 1.0
         webView.scrollView.maximumZoomScale = 1.0
 
-        // Only inject viewport meta — do NOT force playsinline so stream players
-        // can use their own full-screen behavior (native or custom)
         let viewportScript = """
         var meta = document.querySelector('meta[name="viewport"]');
         if (!meta) {
@@ -168,13 +163,17 @@ struct SecureWebEngineRepresentable: UIViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
-            if let url = navigationAction.request.url {
-                webView.load(URLRequest(url: url))
+            // Let pop-ups open, then auto-kill them instantly so the stream stays visible
+            guard let url = navigationAction.request.url else { return nil }
+            let popup = WKWebView(frame: .zero, configuration: configuration)
+            popup.load(URLRequest(url: url))
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                popup.stopLoading()
+                popup.removeFromSuperview()
             }
-            return nil
+            return popup
         }
 
-        // Support JavaScript alerts (some stream sites use these)
         func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping () -> Void) {
             completionHandler()
         }
