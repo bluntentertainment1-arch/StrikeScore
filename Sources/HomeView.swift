@@ -105,6 +105,9 @@ struct HomeView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.visible, for: .navigationBar)
             .searchable(text: $searchText, prompt: "Search teams...")
+            .onAppear {
+                AdMobManager.shared.preloadAllAds()
+            }
             .sheet(item: $selectedMatch) { match in
                 FeaturedMatchDetailView(match: match)
             }
