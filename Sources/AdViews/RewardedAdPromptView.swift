@@ -11,13 +11,13 @@ struct RewardedAdPromptView: View {
                 .contentShape(Rectangle())
                 .onTapGesture { /* Prevent tap-through */ }
 
-            VStack(spacing: 24) {
+            VStack(spacing: 16) {
                 ZStack {
                     Circle()
                         .fill(Color.green.opacity(0.15))
-                        .frame(width: 80, height: 80)
+                        .frame(width: 60, height: 60)
                     Image(systemName: "heart.fill")
-                        .font(.system(size: 36))
+                        .font(.system(size: 28))
                         .foregroundColor(.green)
                         .scaleEffect(heartScale)
                 }
@@ -29,7 +29,7 @@ struct RewardedAdPromptView: View {
                 }
 
                 Text("Support StrikeScore")
-                    .font(.system(size: 20, weight: .black, design: .rounded))
+                    .font(.system(size: 18, weight: .black, design: .rounded))
 
                 Text("Help us keep StrikeScore free for everyone. Watch a short video to support our development team!")
                     .font(.system(size: 14, weight: .medium))
@@ -54,7 +54,7 @@ struct RewardedAdPromptView: View {
                     }
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
+                    .padding(.vertical, 10)
                     .background(
                         LinearGradient(
                             colors: [Color.green, Color.green.opacity(0.85)],
@@ -79,8 +79,8 @@ struct RewardedAdPromptView: View {
 
                 Spacer(minLength: 0)
             }
-            .padding(24)
-            .frame(maxWidth: 340)
+            .padding(18)
+            .frame(width: 300)
             .background(Color(.systemBackground))
             .cornerRadius(20)
             .shadow(color: Color.black.opacity(0.2), radius: 20, x: 0, y: 10)
