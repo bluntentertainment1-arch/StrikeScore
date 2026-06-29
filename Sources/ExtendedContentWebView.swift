@@ -36,7 +36,6 @@ struct ExtendedContentWebView: View {
                     .font(.system(size: 15, weight: .bold, design: .rounded))
                 Spacer()
 
-                // Close without interstitial — streams need instant dismiss for theater mode
                 Button(action: {
                     lockOrientationToPortrait()
                     dismiss()
@@ -131,6 +130,21 @@ struct SecureWebEngineRepresentable: UIViewRepresentable {
             document.getElementsByTagName('head')[0].appendChild(meta);
         }
         meta.content = 'width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no';
+
+        // Focus overlay: dim everything except video elements
+        (function() {
+            var existing = document.getElementById('strikescore-focus-overlay');
+            if (existing) return;
+
+            var overlay = document.createElement('div');
+            overlay.id = 'strikescore-focus-overlay';
+            overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:999998;pointer-events:none;';
+
+            var style = document.createElement('style');
+            style.textContent = 'video, iframe { position:relative; z-index:999999 !important; }';
+            document.head.appendChild(style);
+            document.body.appendChild(overlay);
+        })();
         """
         let userScript = WKUserScript(source: viewportScript, injectionTime: .atDocumentEnd, forMainFrameOnly: true)
         configuration.userContentController.addUserScript(userScript)
@@ -163,7 +177,6 @@ struct SecureWebEngineRepresentable: UIViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
-            // Let pop-ups open, then auto-kill them instantly so the stream stays visible
             guard let url = navigationAction.request.url else { return nil }
             let popup = WKWebView(frame: .zero, configuration: configuration)
             popup.load(URLRequest(url: url))
