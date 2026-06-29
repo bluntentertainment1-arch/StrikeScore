@@ -14,6 +14,7 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
     private var fixtureInterstitialAd: InterstitialAd?
     private var articleInterstitialAd: InterstitialAd?
     private var linkInterstitialAd: InterstitialAd?
+    private var closeInterstitialAd: InterstitialAd?          // FIX #2: Dedicated close ad
     private var returningInterstitialAd: InterstitialAd?
     private var rewardedAd: RewardedAd?
 
@@ -25,11 +26,13 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
     private var lastFixtureInterstitialTime: Date?
     private var lastArticleInterstitialTime: Date?
     private var lastLinkInterstitialTime: Date?
+    private var lastCloseInterstitialTime: Date?              // FIX #2: Separate close cooldown
     private var lastReturningAdTime: Date?
 
     private let fixtureCooldown: TimeInterval = 20
     private let articleCooldown: TimeInterval = 20
-    private let linkCooldown: TimeInterval = 60
+    private let linkCooldown: TimeInterval = 0                // FIX #1: Remove link cooldown
+    private let closeCooldown: TimeInterval = 0                 // FIX #2: No cooldown on close
     private let returningAdCooldown: TimeInterval = 20
 
     // MARK: - Tap Tracking
@@ -86,6 +89,7 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
         loadFixtureInterstitial()
         loadArticleInterstitial()
         loadLinkInterstitial()
+        loadCloseInterstitial()                               // FIX #2: Preload close ad
         loadReturningInterstitialAd()
         loadRewardedAd()
     }
@@ -112,6 +116,7 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
             }
             ad.fullScreenContentDelegate = self
             self.fixtureInterstitialAd = ad
+            AppLogger.shared.log("Fixture ad loaded")
             AppLogger.shared.log("Fixture interstitial LOADED and READY")
         }
     }
@@ -131,12 +136,10 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
             completion()
             return
         }
-        // FIX #1: Store completion, execute after ad dismisses
         pendingInterstitialCompletion = completion
         ad.present(from: rootVC)
         fixtureInterstitialAd = nil
         lastFixtureInterstitialTime = Date()
-        // FIX #8: Delay reload by 1 second
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
             self?.loadFixtureInterstitial()
         }
@@ -164,6 +167,7 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
             }
             ad.fullScreenContentDelegate = self
             self.articleInterstitialAd = ad
+            AppLogger.shared.log("Article ad loaded")
             AppLogger.shared.log("Article interstitial LOADED and READY")
         }
     }
@@ -192,7 +196,7 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
         }
     }
 
-    // MARK: - Link Interstitial (EVERY tap)
+    // MARK: - Link Interstitial (EVERY tap — FIX #1: cooldown = 0)
     private func loadLinkInterstitial(retryCount: Int = 0) {
         guard linkInterstitialAd == nil else { return }
         let request = Request()
@@ -214,12 +218,14 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
             }
             ad.fullScreenContentDelegate = self
             self.linkInterstitialAd = ad
+            AppLogger.shared.log("Link ad loaded")
             AppLogger.shared.log("Link interstitial LOADED and READY")
         }
     }
 
     func showLinkInterstitialIfAllowed(completion: @escaping () -> Void) {
         AppLogger.shared.log("showLinkInterstitialIfAllowed called, ad ready: \(linkInterstitialAd != nil)")
+        // FIX #1: linkCooldown is now 0, so this check always passes
         if let lastTime = lastLinkInterstitialTime {
             guard Date().timeIntervalSince(lastTime) >= linkCooldown else {
                 AppLogger.shared.log("Link interstitial on cooldown")
@@ -233,13 +239,220 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
             completion()
             return
         }
-        // FIX #2: Store completion, execute after ad dismisses
         pendingInterstitialCompletion = completion
         ad.present(from: rootVC)
         linkInterstitialAd = nil
         lastLinkInterstitialTime = Date()
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
             self?.loadLinkInterstitial()
+        }
+    }
+
+    // MARK: - Close Interstitial (FIX #2: Dedicated close ad)
+    private func loadCloseInterstitial(retryCount: Int = 0) {
+        guard closeInterstitialAd == nil else { return }
+        let request = Request()
+        InterstitialAd.load(with: AdMobManager.interstitialAdUnitID, request: request) { [weak self] ad, error in
+            guard let self = self else { return }
+            if let error = error {
+                AppLogger.shared.error("Close interstitial load error: \(error.localizedDescription)")
+                self.closeInterstitialAd = nil
+                let delay = min(5.0 * pow(2.0, Double(retryCount)), 30.0)
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                    self?.loadCloseInterstitial(retryCount: retryCount + 1)
+                }
+                return
+            }
+            guard let ad = ad else {
+                AppLogger.shared.error("Close interstitial load returned nil ad")
+                self.closeInterstitialAd = nil
+                return
+            }
+            ad.fullScreenContentDelegate = self
+            self.closeInterstitialAd = ad
+            AppLogger.shared.log("Close ad loaded")
+            AppLogger.shared.log("Close interstitial LOADED and READY")
+        }
+    }
+
+    func showCloseInterstitialIfAllowed(completion: @escaping () -> Void) {
+        AppLogger.shared.log("showCloseInterstitialIfAllowed called, ad ready: \(closeInterstitialAd != nil)")
+        if let lastTime = lastCloseInterstitialTime {
+            guard Date().timeIntervalSince(lastTime) >= closeCooldown else {
+                AppLogger.shared.log("Close interstitial on cooldown")
+                completion()
+                return
+            }
+        }
+        guard let rootVC = getRootViewController(), let ad = closeInterstitialAd else {
+            AppLogger.shared.log("Close interstitial NOT ready, loading now...")
+            loadCloseInterstitial()
+            completion()
+            return
+        }
+        pendingInterstitialCompletion = completion
+        ad.present(from: rootVC)
+        closeInterstitialAd = nil
+        lastCloseInterstitialTime = Date()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.loadCloseInterstitial()
+        }
+    }
+
+    // MARK: - Returning Interstitial
+    func loadReturningInterstitialAd(retryCount: Int = 0) {
+        guard returningInterstitialAd == nil else { return }
+        let request = Request()
+        InterstitialAd.load(with: AdMobManager.interstitialAdUnitID, request: request) { [weak self] ad, error in
+            guard let self = self else { return }
+            if let error = error {
+                AppLogger.shared.error("Returning interstitial load error: \(error.localizedDescription)")
+                self.returningInterstitialAd = nil
+                let delay = min(5.0 * pow(2.0, Double(retryCount)), 30.0)
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                    self?.loadReturningInterstitialAd(retryCount: retryCount + 1)
+                }
+                return
+            }
+            guard let ad = ad else {
+                AppLogger.shared.error("Returning interstitial load returned nil ad")
+                self.returningInterstitialAd = nil
+                return
+            }
+            ad.fullScreenContentDelegate = self
+            self.returningInterstitialAd = ad
+            AppLogger.shared.log("Returning interstitial LOADED and READY")
+        }
+    }
+
+    func showReturningAdIfAllowed() {
+        AppLogger.shared.log("showReturningAdIfAllowed called, ad ready: \(returningInterstitialAd != nil)")
+        if let lastTime = lastReturningAdTime {
+            guard Date().timeIntervalSince(lastTime) >= returningAdCooldown else {
+                AppLogger.shared.log("Returning interstitial on cooldown")
+                if returningInterstitialAd == nil {
+                    loadReturningInterstitialAd()
+                }
+                return
+            }
+        }
+        guard let rootVC = getRootViewController(), let ad = returningInterstitialAd else {
+            AppLogger.shared.log("Returning interstitial NOT ready, loading now...")
+            loadReturningInterstitialAd()
+            return
+        }
+        ad.present(from: rootVC)
+        returningInterstitialAd = nil
+        lastReturningAdTime = Date()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.loadReturningInterstitialAd()
+        }
+    }
+
+    // MARK: - Tracking Methods
+    @discardableResult
+    func trackFixtureTapAndShouldShowInterstitial() -> Bool {
+        fixtureTapCount += 1
+        if fixtureTapCount == 2 {
+            fixtureTapCount = 0
+            return true
+        }
+        return false
+    }
+
+    @discardableResult
+    func trackArticleTap(at index: Int) -> Bool {
+        let targetIndices = [2, 4, 7]
+        guard targetIndices.contains(index) else { return false }
+        guard !articleTapIndices.contains(index) else { return false }
+        articleTapIndices.insert(index)
+        return true
+    }
+
+    func trackLinkTap() {
+        // No-op - links show ad on every tap
+    }
+
+    // MARK: - Rewarded Ad
+    func loadRewardedAd(retryCount: Int = 0) {
+        guard rewardedAd == nil else { return }
+        let request = Request()
+        RewardedAd.load(with: AdMobManager.rewardedAdUnitID, request: request) { [weak self] ad, error in
+            guard let self = self else { return }
+            if let error = error {
+                AppLogger.shared.error("Rewarded load error: \(error.localizedDescription(completion: @escaping () -> Void) {
+        AppLogger.shared.log("showLinkInterstitialIfAllowed called, ad ready: \(linkInterstitialAd != nil)")
+        // FIX #1: linkCooldown is now 0, so this check always passes
+        if let lastTime = lastLinkInterstitialTime {
+            guard Date().timeIntervalSince(lastTime) >= linkCooldown else {
+                AppLogger.shared.log("Link interstitial on cooldown")
+                completion()
+                return
+            }
+        }
+        guard let rootVC = getRootViewController(), let ad = linkInterstitialAd else {
+            AppLogger.shared.log("Link interstitial NOT ready, loading now...")
+            loadLinkInterstitial()
+            completion()
+            return
+        }
+        pendingInterstitialCompletion = completion
+        ad.present(from: rootVC)
+        linkInterstitialAd = nil
+        lastLinkInterstitialTime = Date()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.loadLinkInterstitial()
+        }
+    }
+
+    // MARK: - Close Interstitial (FIX #2: Dedicated close ad)
+    private func loadCloseInterstitial(retryCount: Int = 0) {
+        guard closeInterstitialAd == nil else { return }
+        let request = Request()
+        InterstitialAd.load(with: AdMobManager.interstitialAdUnitID, request: request) { [weak self] ad, error in
+            guard let self = self else { return }
+            if let error = error {
+                AppLogger.shared.error("Close interstitial load error: \(error.localizedDescription)")
+                self.closeInterstitialAd = nil
+                let delay = min(5.0 * pow(2.0, Double(retryCount)), 30.0)
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                    self?.loadCloseInterstitial(retryCount: retryCount + 1)
+                }
+                return
+            }
+            guard let ad = ad else {
+                AppLogger.shared.error("Close interstitial load returned nil ad")
+                self.closeInterstitialAd = nil
+                return
+            }
+            ad.fullScreenContentDelegate = self
+            self.closeInterstitialAd = ad
+            AppLogger.shared.log("Close ad loaded")
+            AppLogger.shared.log("Close interstitial LOADED and READY")
+        }
+    }
+
+    func showCloseInterstitialIfAllowed(completion: @escaping () -> Void) {
+        AppLogger.shared.log("showCloseInterstitialIfAllowed called, ad ready: \(closeInterstitialAd != nil)")
+        if let lastTime = lastCloseInterstitialTime {
+            guard Date().timeIntervalSince(lastTime) >= closeCooldown else {
+                AppLogger.shared.log("Close interstitial on cooldown")
+                completion()
+                return
+            }
+        }
+        guard let rootVC = getRootViewController(), let ad = closeInterstitialAd else {
+            AppLogger.shared.log("Close interstitial NOT ready, loading now...")
+            loadCloseInterstitial()
+            completion()
+            return
+        }
+        pendingInterstitialCompletion = completion
+        ad.present(from: rootVC)
+        closeInterstitialAd = nil
+        lastCloseInterstitialTime = Date()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.loadCloseInterstitial()
         }
     }
 
@@ -339,6 +552,7 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
             }
             ad.fullScreenContentDelegate = self
             self.rewardedAd = ad
+            AppLogger.shared.log("Rewarded ad loaded")
             AppLogger.shared.log("Rewarded ad LOADED and READY")
         }
     }
@@ -351,7 +565,6 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
             onClose()
             return
         }
-        // FIX #5: Store onClose, execute after ad dismisses
         pendingRewardedClose = onClose
         rewarded.present(from: rootVC) {
             onRewardEarned(rewarded.adReward.amount.intValue)
@@ -368,6 +581,7 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
         rewardedPromptTimer = Timer.scheduledTimer(withTimeInterval: rewardedPromptInterval, repeats: true) { [weak self] _ in
             self?.triggerRewardedPrompt()
         }
+        AppLogger.shared.log("Rewarded timer started")
         AppLogger.shared.log("Rewarded prompt timer started (3 minute interval)")
     }
 
@@ -388,13 +602,19 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
         DispatchQueue.main.async { [weak self] in
             guard let self = self, let rootVC = self.getRootViewController() else { return }
 
+            // FIX #5: Block prompt if another modal is already presented
+            guard rootVC.presentedViewController == nil else {
+                AppLogger.shared.log("Rewarded prompt blocked by modal")
+                return
+            }
+
             let promptVC = UIHostingController(rootView: RewardedAdPromptView())
             promptVC.modalPresentationStyle = .overFullScreen
             promptVC.modalTransitionStyle = .crossDissolve
             promptVC.view.backgroundColor = UIColor.black.withAlphaComponent(0.6)
             self.isRewardedPromptVisible = true
             rootVC.present(promptVC, animated: true)
-            AppLogger.shared.log("Rewarded prompt PRESENTED")
+            AppLogger.shared.log("Rewarded prompt presented")
         }
     }
 
@@ -409,22 +629,19 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
 
     func adDidDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
         AppLogger.shared.log("Ad dismissed")
-        // FIX #1, #2: Execute pending completion AFTER ad dismisses
         pendingInterstitialCompletion?()
         pendingInterstitialCompletion = nil
-        // FIX #5: Execute pending rewarded close AFTER ad dismisses
         pendingRewardedClose?()
         pendingRewardedClose = nil
-        // Reload all ads
         loadFixtureInterstitial()
         loadArticleInterstitial()
         loadLinkInterstitial()
+        loadCloseInterstitial()                               // FIX #2: Reload close ad too
         loadReturningInterstitialAd()
     }
 
     func ad(_ ad: FullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
         AppLogger.shared.error("Ad failed to present: \(error.localizedDescription)")
-        // Clear pending completions on failure so UI doesn't hang
         pendingInterstitialCompletion?()
         pendingInterstitialCompletion = nil
         pendingRewardedClose?()
@@ -432,15 +649,21 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
         loadFixtureInterstitial()
         loadArticleInterstitial()
         loadLinkInterstitial()
+        loadCloseInterstitial()                               // FIX #2: Reload close ad too
         loadReturningInterstitialAd()
     }
 
-    // MARK: - Window Lookup
+    // MARK: - Window Lookup (FIX #6: Walk to top presented controller)
     private func getRootViewController() -> UIViewController? {
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let rootVC = windowScene.windows.first(where: { $0.isKeyWindow })?.rootViewController else {
+        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let root = scene.windows.first(where: { $0.isKeyWindow })?.rootViewController
+        else {
             return nil
         }
-        return rootVC
+        var current = root
+        while let presented = current.presentedViewController {
+            current = presented
+        }
+        return current
     }
 }
