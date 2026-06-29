@@ -1,3 +1,19 @@
+import SwiftUI
+import UserNotifications
+import GoogleMobileAds
+import AppTrackingTransparency
+
+struct AppFlowState {
+    enum ViewPhase {
+        case initialSplash
+        case onboardingFlow
+        case gdprConsentCheck
+        case requestPermissions
+        case excelPreloading
+        case mainDashboard
+    }
+}
+
 @main
 struct StrikeScoreApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
@@ -7,7 +23,7 @@ struct StrikeScoreApp: App {
     @State private var currentPhase: AppFlowState.ViewPhase = .initialSplash
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
 
-    // FIX #4 & #8: Initialize AdMobManager early and preload ads
+    // FIX #4 & #8: Initialize AdMobManager early and preload ads + start timer
     init() {
         _ = AdMobManager.shared
         AdMobManager.shared.preloadAllAds()
@@ -15,4 +31,121 @@ struct StrikeScoreApp: App {
     }
 
     var body: some Scene {
-        // ... rest unchanged
+        WindowGroup {
+            ZStack {
+                switch currentPhase {
+                case .initialSplash:
+                    SplashScreenView(onAnimationComplete: {
+                        withAnimation(.easeInOut(duration: 0.4)) {
+                            if !hasSeenOnboarding {
+                                currentPhase = .onboardingFlow
+                            } else if !GDPRConsentManager.shared.hasConsent {
+                                currentPhase = .gdprConsentCheck
+                            } else {
+                                currentPhase = .requestPermissions
+                            }
+                        }
+                    })
+                    .transition(.opacity)
+                        
+                case .onboardingFlow:
+                    OnboardingView(onOnboardingComplete: {
+                        withAnimation(.easeInOut(duration: 0.4)) {
+                            if !GDPRConsentManager.shared.hasConsent {
+                                currentPhase = .gdprConsentCheck
+                            } else {
+                                currentPhase = .requestPermissions
+                            }
+                        }
+                    })
+                    .transition(.opacity)
+                    
+                case .gdprConsentCheck:
+                    ZStack {
+                        Color(.systemBackground)
+                            .ignoresSafeArea()
+                        
+                        GDPRConsentView(isPresented: Binding(
+                            get: { currentPhase == .gdprConsentCheck },
+                            set: { _ in
+                                withAnimation(.easeInOut(duration: 0.4)) {
+                                    currentPhase = .requestPermissions
+                                }
+                            }
+                        ))
+                    }
+                    .transition(.opacity)
+                    
+                case .requestPermissions:
+                    Color(.systemBackground)
+                        .ignoresSafeArea()
+                        .onAppear {
+                            triggerPermissionsPipeline()
+                        }
+                    
+                case .excelPreloading:
+                    DataLoadingProgressView()
+                        .transition(.opacity)
+                        .task {
+                            await viewModel.loadCMSData()
+                            withAnimation(.easeInOut(duration: 0.4)) {
+                                currentPhase = .mainDashboard
+                            }
+                        }
+                        
+                case .mainDashboard:
+                    ContentView()
+                        .environmentObject(viewModel)
+                        .transition(.opacity)
+                }
+            }
+        }
+        .onChange(of: scenePhase) { newPhase in
+            if newPhase == .active && currentPhase == .mainDashboard {
+                Task {
+                    await viewModel.loadCMSData()
+                }
+            }
+        }
+    }
+    
+    private func triggerPermissionsPipeline() {
+        if #available(iOS 14, *) {
+            ATTrackingManager.requestTrackingAuthorization { status in
+                DispatchQueue.main.async {
+                    MobileAds.shared.start(completionHandler: nil)
+                    NotificationManager.shared.requestPermission()
+                    
+                    withAnimation(.easeInOut(duration: 0.4)) {
+                        currentPhase = .excelPreloading
+                    }
+                }
+            }
+        } else {
+            MobileAds.shared.start(completionHandler: nil)
+            NotificationManager.shared.requestPermission()
+            withAnimation(.easeInOut(duration: 0.4)) {
+                currentPhase = .excelPreloading
+            }
+        }
+    }
+}
+
+struct DataLoadingProgressView: View {
+    var body: some View {
+        ZStack {
+            Color(.systemBackground)
+                .ignoresSafeArea()
+            
+            VStack(spacing: 16) {
+                ProgressView()
+                    .tint(.green)
+                    .scaleEffect(1.3)
+                
+                Text("Updating Match Schedules...")
+                    .font(.system(size: 14, weight: .bold, design: .rounded))
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+}
