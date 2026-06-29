@@ -1,4 +1,4 @@
-limport SwiftUI
+import SwiftUI
 import WebKit
 
 class WebContentStorage: ObservableObject {
@@ -163,15 +163,8 @@ struct SecureWebEngineRepresentable: UIViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
-            // Let pop-ups open, then auto-kill them instantly so the stream stays visible
-            guard let url = navigationAction.request.url else { return nil }
-            let popup = WKWebView(frame: .zero, configuration: configuration)
-            popup.load(URLRequest(url: url))
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                popup.stopLoading()
-                popup.removeFromSuperview()
-            }
-            return popup
+            // Block all pop-ups / target="_blank" — stream stays uninterrupted
+            return nil
         }
 
         func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping () -> Void) {
