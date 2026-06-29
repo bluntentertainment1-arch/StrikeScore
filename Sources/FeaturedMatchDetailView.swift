@@ -178,7 +178,7 @@ struct FeaturedMatchDetailView: View {
 
     private func handleLinkTap(url: URL) {
         // Track link taps - interstitial shows on 2nd tap or on stream close
-        let shouldShowAd = AdMobManager.shared.trackLinkTapAndShouldShowInterstitial()
+        let shouldShowAd = AdMobManager.shared.trackLinkTap()
         if shouldShowAd {
             // On 2nd link tap, show interstitial THEN open stream
             AdMobManager.shared.showLinkInterstitialIfAllowed {
