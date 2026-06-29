@@ -17,11 +17,9 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
     private var returningInterstitialAd: InterstitialAd?
     private var rewardedAd: RewardedAd?
 
-    // Track which ad is currently presenting (for delegate callbacks)
-    private var presentingAdType: AdType?
-    private enum AdType {
-        case fixture, article, link, returning
-    }
+    // MARK: - Pending Completions (execute after ad dismisses)
+    private var pendingInterstitialCompletion: (() -> Void)?
+    private var pendingRewardedClose: (() -> Void)?
 
     // MARK: - Independent Cooldowns
     private var lastFixtureInterstitialTime: Date?
@@ -31,7 +29,7 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
 
     private let fixtureCooldown: TimeInterval = 20
     private let articleCooldown: TimeInterval = 20
-    private let linkCooldown: TimeInterval = 20
+    private let linkCooldown: TimeInterval = 60
     private let returningAdCooldown: TimeInterval = 20
 
     // MARK: - Tap Tracking
@@ -82,7 +80,7 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
         startRewardedPromptTimer()
     }
 
-    // MARK: - Preload All Ads (called on app launch AND view appearances)
+    // MARK: - Preload All Ads
     func preloadAllAds() {
         AppLogger.shared.log("Preloading all ads...")
         loadFixtureInterstitial()
@@ -133,12 +131,15 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
             completion()
             return
         }
-        presentingAdType = .fixture
+        // FIX #1: Store completion, execute after ad dismisses
+        pendingInterstitialCompletion = completion
         ad.present(from: rootVC)
         fixtureInterstitialAd = nil
         lastFixtureInterstitialTime = Date()
-        loadFixtureInterstitial()
-        completion()
+        // FIX #8: Delay reload by 1 second
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.loadFixtureInterstitial()
+        }
     }
 
     // MARK: - Article Interstitial
@@ -182,12 +183,13 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
             completion()
             return
         }
-        presentingAdType = .article
+        pendingInterstitialCompletion = completion
         ad.present(from: rootVC)
         articleInterstitialAd = nil
         lastArticleInterstitialTime = Date()
-        loadArticleInterstitial()
-        completion()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.loadArticleInterstitial()
+        }
     }
 
     // MARK: - Link Interstitial (EVERY tap)
@@ -231,12 +233,14 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
             completion()
             return
         }
-        presentingAdType = .link
+        // FIX #2: Store completion, execute after ad dismisses
+        pendingInterstitialCompletion = completion
         ad.present(from: rootVC)
         linkInterstitialAd = nil
         lastLinkInterstitialTime = Date()
-        loadLinkInterstitial()
-        completion()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.loadLinkInterstitial()
+        }
     }
 
     // MARK: - Returning Interstitial
@@ -281,11 +285,12 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
             loadReturningInterstitialAd()
             return
         }
-        presentingAdType = .returning
         ad.present(from: rootVC)
         returningInterstitialAd = nil
         lastReturningAdTime = Date()
-        loadReturningInterstitialAd()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.loadReturningInterstitialAd()
+        }
     }
 
     // MARK: - Tracking Methods
@@ -346,6 +351,8 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
             onClose()
             return
         }
+        // FIX #5: Store onClose, execute after ad dismisses
+        pendingRewardedClose = onClose
         rewarded.present(from: rootVC) {
             onRewardEarned(rewarded.adReward.amount.intValue)
         }
@@ -353,7 +360,6 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
             self?.loadRewardedAd()
         }
-        onClose()
     }
 
     // MARK: - Rewarded Prompt Timer
@@ -402,9 +408,14 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
     }
 
     func adDidDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
-        AppLogger.shared.log("Ad dismissed, type: \(String(describing: presentingAdType))")
-        presentingAdType = nil
-        // Reload all ads to be safe
+        AppLogger.shared.log("Ad dismissed")
+        // FIX #1, #2: Execute pending completion AFTER ad dismisses
+        pendingInterstitialCompletion?()
+        pendingInterstitialCompletion = nil
+        // FIX #5: Execute pending rewarded close AFTER ad dismisses
+        pendingRewardedClose?()
+        pendingRewardedClose = nil
+        // Reload all ads
         loadFixtureInterstitial()
         loadArticleInterstitial()
         loadLinkInterstitial()
@@ -413,7 +424,11 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
 
     func ad(_ ad: FullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
         AppLogger.shared.error("Ad failed to present: \(error.localizedDescription)")
-        presentingAdType = nil
+        // Clear pending completions on failure so UI doesn't hang
+        pendingInterstitialCompletion?()
+        pendingInterstitialCompletion = nil
+        pendingRewardedClose?()
+        pendingRewardedClose = nil
         loadFixtureInterstitial()
         loadArticleInterstitial()
         loadLinkInterstitial()
