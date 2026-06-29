@@ -96,12 +96,16 @@ struct RewardedAdPromptView: View {
         }
     }
 
+    // FIX #6 & #7: Reset flag and dismiss from the top-most presented controller
     private func dismissPrompt() {
         AdMobManager.shared.setRewardedPromptVisible(false)
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let rootVC = windowScene.windows.first(where: { $0.isKeyWindow })?.rootViewController {
-            rootVC.dismiss(animated: true)
+        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let rootVC = scene.windows.first(where: { $0.isKeyWindow })?.rootViewController else { return }
+        var current = rootVC
+        while let presented = current.presentedViewController {
+            current = presented
         }
+        current.dismiss(animated: true)
     }
 }
 
