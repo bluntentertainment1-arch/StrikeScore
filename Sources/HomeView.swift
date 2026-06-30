@@ -7,15 +7,31 @@ struct HomeView: View {
     @State private var searchText = ""
     @State private var selectedDate = 0
     @State private var selectedMatch: FeaturedMatch? = nil
+    @State private var resultsRefreshTimer: Timer?
 
     private var targetFilteringDate: Date {
         Calendar.current.date(byAdding: .day, value: selectedDate, to: Date())!
     }
 
     var finishedResultsMatches: [FeaturedMatch] {
-        viewModel.featuredMatches.filter {
-            $0.status.uppercased() == "FINISHED" || $0.status.uppercased() == "FT"
-        }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+
+        return viewModel.featuredMatches
+            .filter {
+                $0.status.uppercased() == "FINISHED" || $0.status.uppercased() == "FT"
+            }
+            .sorted {
+                // Sort by date descending (newest first), then by time descending
+                guard let dateA = formatter.date(from: $0.matchDate),
+                      let dateB = formatter.date(from: $1.matchDate) else { return false }
+                if dateA != dateB {
+                    return dateA > dateB
+                }
+                return $0.matchTime > $1.matchTime
+            }
+            .prefix(15)  // Show only the 15 most recent results
+            .map { $0 }
     }
 
     var filteredFixturesFeed: [FeaturedMatch] {
@@ -41,6 +57,21 @@ struct HomeView: View {
         return grouped
             .sorted { $0.value.count > $1.value.count }
             .map { (competition: $0.key, matches: $0.value.sorted { $0.matchTime < $1.matchTime }) }
+    }
+
+    private func startResultsRefreshTimer() {
+        stopResultsRefreshTimer()
+        // Refresh every 60 seconds to check for new finished match results from Excel
+        resultsRefreshTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
+            Task {
+                await viewModel.loadCMSData()
+            }
+        }
+    }
+
+    private func stopResultsRefreshTimer() {
+        resultsRefreshTimer?.invalidate()
+        resultsRefreshTimer = nil
     }
 
     var body: some View {
@@ -107,6 +138,10 @@ struct HomeView: View {
             .searchable(text: $searchText, prompt: "Search teams...")
             .onAppear {
                 AdMobManager.shared.preloadAllAds()
+                startResultsRefreshTimer()
+            }
+            .onDisappear {
+                stopResultsRefreshTimer()
             }
             .sheet(item: $selectedMatch) { match in
                 FeaturedMatchDetailView(match: match)
