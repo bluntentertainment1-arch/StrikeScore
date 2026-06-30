@@ -5,10 +5,10 @@ import UIKit
 class AdMobManager: NSObject, FullScreenContentDelegate {
     static let shared = AdMobManager()
 
-    static let bannerAdUnitID = "ca-app-pub-3940256099942544/2934735716"
-    static let rewardedAdUnitID = "ca-app-pub-3940256099942544/1712485313"
-    static let interstitialAdUnitID = "ca-app-pub-3940256099942544/4411468910"
-    static let squareBannerAdUnitID = "ca-app-pub-3940256099942544/2435281174"
+    static let bannerAdUnitID = "ca-app-pub-1819215492028258/1505777066"
+    static let rewardedAdUnitID = "ca-app-pub-1819215492028258/9042697753"
+    static let interstitialAdUnitID = "ca-app-pub-1819215492028258/7538044399"
+    static let squareBannerAdUnitID = "ca-app-pub-1819215492028258/1505777066"
 
     // MARK: - Separate Ad Instances
     private var fixtureInterstitialAd: InterstitialAd?
