@@ -4,7 +4,6 @@ import Combine
 @MainActor
 class MatchesViewModel: ObservableObject {
     @Published var featuredMatches: [FeaturedMatch] = []
-    @Published var editorialItems: [EditorialItem] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
 
@@ -20,11 +19,8 @@ class MatchesViewModel: ObservableObject {
         errorMessage = nil
 
         do {
-            async let featuredTask = ExcelCMSService.shared.fetchFeaturedMatches()
-            async let editorialTask = ExcelCMSService.shared.fetchEditorial()
+            let featured = try await ExcelCMSService.shared.fetchFeaturedMatches()
 
-            let (featured, editorial) = try await (featuredTask, editorialTask)
-            
             // Organized scheduled entries sorted strictly according to scheduling dates/times
             self.featuredMatches = featured.sorted { (m1: FeaturedMatch, m2: FeaturedMatch) -> Bool in
                 if m1.matchDate != m2.matchDate {
@@ -32,16 +28,12 @@ class MatchesViewModel: ObservableObject {
                 }
                 return m1.matchTime < m2.matchTime
             }
-            self.editorialItems = editorial
 
             CacheService.shared.save(self.featuredMatches, forKey: "cachedFeatured")
-            CacheService.shared.save(editorial, forKey: "cachedEditorial")
 
-            AppLogger.shared.log("CMS loaded: \(featured.count) featured sorted, \(editorial.count) editorial")
-            
-            // ✅ INTEGRATED UPDATE: Safely schedule daily notification digests based on fresh content
-            NotificationManager.shared.scheduleDailyEditorialDigests(headlines: ["Discover Todays Top Football News & Updates"])
+            AppLogger.shared.log("CMS loaded: \(featured.count) featured sorted")
 
+            NotificationManager.shared.scheduleDailyEditorialDigests(headlines: ["Discover Today's Top Football Matches & Fixtures"])
         } catch {
             AppLogger.shared.error("CMS load error: \(error.localizedDescription)")
             loadCMSFromCache()
@@ -56,9 +48,6 @@ class MatchesViewModel: ObservableObject {
                 if $0.matchDate != $1.matchDate { return $0.matchDate < $1.matchDate }
                 return $0.matchTime < $1.matchTime
             }
-        }
-        if let cached: [EditorialItem] = CacheService.shared.load([EditorialItem].self, forKey: "cachedEditorial") {
-            self.editorialItems = cached
         }
     }
 
