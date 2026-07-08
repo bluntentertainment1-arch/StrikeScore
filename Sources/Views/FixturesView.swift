@@ -27,7 +27,7 @@ struct FixturesView: View {
                             }
                             .padding(.top, 80)
                         } else {
-                            ForEach(Array(filteredUpcomingMatches.enumerated()), id: \element.id) { index, match in
+                            ForEach(Array(filteredUpcomingMatches.enumerated()), id: \.element.id) { index, match in
                                 VStack(spacing: 12) {
                                     FixtureCard(
                                         match: match,
@@ -40,7 +40,6 @@ struct FixturesView: View {
                                     }
                                     .padding(.horizontal)
 
-                                    // Auto-hiding banner — shows only when AdMob serves an ad
                                     if (index + 1) % 3 == 0 && index != filteredUpcomingMatches.count - 1 {
                                         InlineBannerAdView(
                                             adUnitID: AdMobManager.bannerAdUnitID,
@@ -175,7 +174,7 @@ struct FixtureCard: View {
                         .font(.caption2.bold())
                         .foregroundColor(.green)
 
-                    Text("\(match.matchDate) • \(match.matchTime)")
+                    Text("\(match.matchDate) \u{2022} \(match.matchTime)")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
