@@ -26,7 +26,7 @@ struct OnboardingView: View {
             Color(.systemBackground).ignoresSafeArea()
 
             TabView(selection: $currentPage) {
-                ForEach(0..<pages.count, id: \self) { index in
+                ForEach(0..<pages.count, id: \.self) { index in
                     OnboardingPageView(page: pages[index])
                         .tag(index)
                 }
