@@ -4,6 +4,7 @@ struct TeamExplorerView: View {
     @EnvironmentObject var viewModel: MatchesViewModel
     @State private var searchText = ""
     @State private var selectedTeam: String? = nil
+    @State private var showTeamMatches = false
 
     private var allTeams: [String] {
         let teams = Set(viewModel.featuredMatches.flatMap { [$0.homeTeam, $0.awayTeam] })
@@ -13,6 +14,16 @@ struct TeamExplorerView: View {
     private var filteredTeams: [String] {
         if searchText.isEmpty { return allTeams }
         return allTeams.filter { $0.localizedCaseInsensitiveContains(searchText) }
+    }
+
+    private var selectedTeamMatches: [FeaturedMatch] {
+        guard let team = selectedTeam else { return [] }
+        return viewModel.featuredMatches.filter {
+            $0.homeTeam == team || $0.awayTeam == team
+        }.sorted {
+            if $0.matchDate != $1.matchDate { return $0.matchDate < $1.matchDate }
+            return $0.matchTime < $1.matchTime
+        }
     }
 
     var body: some View {
@@ -51,9 +62,10 @@ struct TeamExplorerView: View {
                         .padding(.top, 100)
                     } else {
                         LazyVStack(spacing: 0) {
-                            ForEach(filteredTeams, id: \self) { team in
+                            ForEach(filteredTeams, id: \.self) { team in
                                 Button(action: {
                                     selectedTeam = team
+                                    showTeamMatches = true
                                 }) {
                                     HStack(spacing: 16) {
                                         // Team initials badge
@@ -98,21 +110,12 @@ struct TeamExplorerView: View {
             .navigationTitle("Teams")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(.visible, for: .navigationBar)
-            .sheet(item: $selectedTeamMatchWrapper) { wrapper in
-                TeamMatchesView(team: wrapper.team, matches: wrapper.matches)
+            .navigationDestination(isPresented: $showTeamMatches) {
+                if let team = selectedTeam {
+                    TeamMatchesView(team: team, matches: selectedTeamMatches)
+                }
             }
         }
-    }
-
-    private var selectedTeamMatchWrapper: TeamMatchWrapper? {
-        guard let team = selectedTeam else { return nil }
-        let matches = viewModel.featuredMatches.filter {
-            $0.homeTeam == team || $0.awayTeam == team
-        }.sorted {
-            if $0.matchDate != $1.matchDate { return $0.matchDate < $1.matchDate }
-            return $0.matchTime < $1.matchTime
-        }
-        return TeamMatchWrapper(team: team, matches: matches)
     }
 
     private func teamMatchCount(_ team: String) -> Int {
@@ -135,12 +138,6 @@ struct TeamExplorerView: View {
     }
 }
 
-struct TeamMatchWrapper: Identifiable {
-    let id = UUID()
-    let team: String
-    let matches: [FeaturedMatch]
-}
-
 struct TeamMatchesView: View {
     let team: String
     let matches: [FeaturedMatch]
@@ -148,76 +145,69 @@ struct TeamMatchesView: View {
     @State private var selectedMatch: FeaturedMatch? = nil
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 16) {
-                    // Team header
-                    HStack(spacing: 16) {
-                        ZStack {
-                            Circle()
-                                .fill(teamColor(for: team))
-                                .frame(width: 60, height: 60)
-                            Text(teamInitials(for: team))
-                                .font(.system(size: 20, weight: .black))
-                                .foregroundColor(.white)
-                        }
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(team)
-                                .font(.title2)
-                                .fontWeight(.bold)
-                            Text("\(matches.count) matches")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                        }
-
-                        Spacer()
+        ScrollView {
+            VStack(spacing: 16) {
+                // Team header
+                HStack(spacing: 16) {
+                    ZStack {
+                        Circle()
+                            .fill(teamColor(for: team))
+                            .frame(width: 60, height: 60)
+                        Text(teamInitials(for: team))
+                            .font(.system(size: 20, weight: .black))
+                            .foregroundColor(.white)
                     }
-                    .padding(.horizontal)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(team)
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        Text("\(matches.count) matches")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+
+                    Spacer()
+                }
+                .padding(.horizontal)
+                .padding(.top, 8)
+
+                // Matches grouped by competition
+                let grouped = Dictionary(grouping: matches) { $0.competition }
+                ForEach(grouped.keys.sorted(), id: \.self) { competition in
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "shield.fill")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(.green)
+                            Text(competition.uppercased())
+                                .font(.system(size: 12, weight: .black))
+                                .foregroundColor(.green)
+                                .tracking(0.5)
+                            Rectangle()
+                                .fill(Color.green.opacity(0.3))
+                                .frame(height: 1)
+                        }
+                        .padding(.horizontal)
+
+                        VStack(spacing: 10) {
+                            ForEach(grouped[competition]!) { match in
+                                MatchCardView(match: match, onTap: {
+                                    selectedMatch = match
+                                })
+                                .padding(.horizontal)
+                            }
+                        }
+                    }
                     .padding(.top, 8)
-
-                    // Matches grouped by competition
-                    let grouped = Dictionary(grouping: matches) { $0.competition }
-                    ForEach(grouped.keys.sorted(), id: \self) { competition in
-                        VStack(alignment: .leading, spacing: 10) {
-                            HStack(spacing: 6) {
-                                Image(systemName: "shield.fill")
-                                    .font(.system(size: 10, weight: .bold))
-                                    .foregroundColor(.green)
-                                Text(competition.uppercased())
-                                    .font(.system(size: 12, weight: .black))
-                                    .foregroundColor(.green)
-                                    .tracking(0.5)
-                                Rectangle()
-                                    .fill(Color.green.opacity(0.3))
-                                    .frame(height: 1)
-                            }
-                            .padding(.horizontal)
-
-                            VStack(spacing: 10) {
-                                ForEach(grouped[competition]!) { match in
-                                    MatchCardView(match: match, onTap: {
-                                        selectedMatch = match
-                                    })
-                                    .padding(.horizontal)
-                                }
-                            }
-                        }
-                        .padding(.top, 8)
-                    }
-                }
-                .padding(.vertical)
-            }
-            .navigationTitle(team)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Close") { dismiss() }
                 }
             }
-            .sheet(item: $selectedMatch) { match in
-                FeaturedMatchDetailView(match: match)
-            }
+            .padding(.vertical)
+        }
+        .navigationTitle(team)
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $selectedMatch) { match in
+            FeaturedMatchDetailView(match: match)
         }
     }
 
