@@ -34,20 +34,23 @@ enum BannerAdSize {
     }
 }
 
+// MARK: - Banner Ad View (Auto-shows when ad loads)
 struct BannerAdView: UIViewRepresentable {
     let adUnitID: String
     let adSize: BannerAdSize
+    @Binding var isLoaded: Bool
 
-    init(adUnitID: String, adSize: BannerAdSize = .standard) {
+    init(adUnitID: String, adSize: BannerAdSize = .standard, isLoaded: Binding<Bool> = .constant(true)) {
         self.adUnitID = adUnitID
         self.adSize = adSize
+        self._isLoaded = isLoaded
     }
 
     func makeUIView(context: Context) -> BannerView {
         let bannerView = BannerView(adSize: adSize.adSize)
         bannerView.adUnitID = adUnitID
+        bannerView.delegate = context.coordinator
 
-        // Resolves target warning safely using modern WindowScene lookups
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
             bannerView.rootViewController = windowScene.windows.first(where: { $0.isKeyWindow })?.rootViewController
         }
@@ -57,18 +60,45 @@ struct BannerAdView: UIViewRepresentable {
     }
 
     func updateUIView(_ uiView: BannerView, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    class Coordinator: NSObject, BannerViewDelegate {
+        var parent: BannerAdView
+
+        init(_ parent: BannerAdView) {
+            self.parent = parent
+        }
+
+        func bannerViewDidReceiveAd(_ bannerView: BannerView) {
+            parent.isLoaded = true
+        }
+
+        func bannerView(_ bannerView: BannerView, didFailToReceiveAdWithError error: Error) {
+            parent.isLoaded = false
+        }
+    }
 }
 
-// MARK: - Inline Banner Ad Container (for inserting between list items)
+// MARK: - Inline Banner Ad Container (Auto-shows/hides based on ad load state)
 struct InlineBannerAdView: View {
     let adUnitID: String
     let adSize: BannerAdSize
+    @State private var isAdLoaded = false
 
     var body: some View {
-        BannerAdView(adUnitID: adUnitID, adSize: adSize)
-            .frame(height: adSize.height)
-            .frame(maxWidth: .infinity)
-            .background(Color(.systemGray6))
-            .cornerRadius(8)
+        Group {
+            if isAdLoaded {
+                BannerAdView(adUnitID: adUnitID, adSize: adSize, isLoaded: $isAdLoaded)
+                    .frame(height: adSize.height)
+                    .frame(maxWidth: .infinity)
+                    .background(Color(.systemGray6))
+                    .cornerRadius(8)
+            } else {
+                EmptyView()
+            }
+        }
     }
 }
