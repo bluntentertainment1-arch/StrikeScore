@@ -112,6 +112,7 @@ struct FeaturedMatchDetailView: View {
                         .frame(maxWidth: isPad ? 700 : .infinity)
                     }
 
+                    // Auto-hiding banner — shows only when AdMob serves an ad
                     InlineBannerAdView(
                         adUnitID: AdMobManager.squareBannerAdUnitID,
                         adSize: .mediumRectangle
@@ -174,7 +175,6 @@ struct FeaturedMatchDetailView: View {
     }
 
     private func handleLinkTap(url: URL) {
-        // Show interstitial on EVERY link tap (links are rare events)
         AdMobManager.shared.showLinkInterstitialIfAllowed {
             self.displayTargetURL = url
         }
