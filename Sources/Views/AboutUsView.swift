@@ -24,7 +24,7 @@ struct AboutUsView: View {
                             .font(.title2)
                             .fontWeight(.bold)
 
-                        Text("StrikeScore is your go-to app for live football scores, fixtures, and standings. We bring you real-time updates from the world of football, powered by football-data.org.")
+                        Text("StrikeScore is your go-to app for live football scores, fixtures, and standings. We bring you real-time updates from the world of football.")
                             .multilineTextAlignment(.center)
                             .foregroundColor(.secondary)
                             .padding(.horizontal)
@@ -37,13 +37,6 @@ struct AboutUsView: View {
                         FeatureRow(icon: "shield.fill", title: "Team Explorer", description: "Browse all teams and their match history")
                     }
                     .padding(.horizontal)
-
-                    VStack(spacing: 8) {
-                        Text("Data Provider")
-                            .font(.headline)
-                        Text("football-data.org")
-                            .foregroundColor(.secondary)
-                    }
 
                     VStack(spacing: 8) {
                         Text("Developed By")
