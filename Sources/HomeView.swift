@@ -76,7 +76,6 @@ struct HomeView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 0) {
-                    // Auto-hiding banner — shows only when AdMob serves an ad
                     InlineBannerAdView(
                         adUnitID: AdMobManager.bannerAdUnitID,
                         adSize: .standard
@@ -86,7 +85,7 @@ struct HomeView: View {
 
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 10) {
-                            ForEach(-3...7, id: \self) { day in
+                            ForEach(-3...7, id: \.self) { day in
                                 DateBubbleView(day: day, isSelected: selectedDate == day) {
                                     selectedDate = day
                                 }
@@ -183,7 +182,7 @@ struct HomeView: View {
 
     private var groupedFixturesView: some View {
         LazyVStack(spacing: 16) {
-            ForEach(Array(groupedFixtures.enumerated()), id: \offset) { groupIndex, group in
+            ForEach(Array(groupedFixtures.enumerated()), id: \.offset) { groupIndex, group in
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 6) {
                         Image(systemName: "shield.fill")
@@ -200,7 +199,7 @@ struct HomeView: View {
                     .padding(.horizontal)
 
                     VStack(spacing: 10) {
-                        ForEach(Array(group.matches.enumerated()), id: \element.id) { matchIndex, match in
+                        ForEach(Array(group.matches.enumerated()), id: \.element.id) { matchIndex, match in
                             VStack(spacing: 10) {
                                 MatchCardView(match: match, onTap: {
                                     handleFixtureTap(match: match)
@@ -225,20 +224,12 @@ struct HomeView: View {
 
     private var searchResultsView: some View {
         LazyVStack(spacing: 10) {
-            ForEach(Array(filteredFixturesFeed.enumerated()), id: \element.id) { index, match in
+            ForEach(filteredFixturesFeed) { match in
                 VStack(spacing: 10) {
                     MatchCardView(match: match, onTap: {
                         handleFixtureTap(match: match)
                     })
                     .padding(.horizontal)
-
-                    if (index + 1) % 3 == 0 && index != filteredFixturesFeed.count - 1 {
-                        InlineBannerAdView(
-                            adUnitID: AdMobManager.bannerAdUnitID,
-                            adSize: .standard
-                        )
-                        .padding(.horizontal)
-                    }
                 }
             }
         }
