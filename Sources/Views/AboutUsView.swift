@@ -24,7 +24,7 @@ struct AboutUsView: View {
                             .font(.title2)
                             .fontWeight(.bold)
 
-                        Text("StrikeScore is your go-to app for live football scores, fixtures, and standings. We bring you real-time updates from the world of football.")
+                        Text("StrikeScore is your go-to app for live football scores, fixtures, and results. We bring you real-time updates from the world of football.")
                             .multilineTextAlignment(.center)
                             .foregroundColor(.secondary)
                             .padding(.horizontal)
