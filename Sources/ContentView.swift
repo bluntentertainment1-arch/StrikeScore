@@ -55,14 +55,8 @@ struct ContentView: View {
             FixturesView()
                 .tabItem { Label("Schedule", systemImage: "calendar") }
                 .tag(2)
-            EditorialView()
-                .tabItem {
-                    VStack {
-                        Image(systemName: "flame.circle.fill")
-                            .symbolRenderingMode(.multicolor)
-                        Text("Explore")
-                    }
-                }
+            TeamExplorerView()
+                .tabItem { Label("Teams", systemImage: "shield.fill") }
                 .tag(3)
             FavoritesView()
                 .tabItem { Label("Favorites", systemImage: "heart") }
@@ -87,8 +81,8 @@ struct ContentView: View {
                 NavigationLink(destination: FixturesView()) {
                     Label("Schedule", systemImage: "calendar")
                 }
-                NavigationLink(destination: EditorialView()) {
-                    Label("Explore", systemImage: "flame.circle.fill")
+                NavigationLink(destination: TeamExplorerView()) {
+                    Label("Teams", systemImage: "shield.fill")
                 }
                 NavigationLink(destination: FavoritesView()) {
                     Label("Favorites", systemImage: "heart")
