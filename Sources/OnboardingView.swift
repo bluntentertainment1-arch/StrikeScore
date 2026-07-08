@@ -7,8 +7,7 @@ struct OnboardingView: View {
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
     @State private var currentPage = 0
     var onOnboardingComplete: () -> Void
-    
-    // ✅ UPDATED: Added Fixtures & Results directly to your existing pages structure
+
     let pages = [
         OnboardingPage(
             image: "sportscourt.fill",
@@ -19,27 +18,22 @@ struct OnboardingView: View {
             image: "calendar.badge.clock",
             title: "Fixtures & Results",
             description: "Explore comprehensive match schedules and past results"
-        ),
-        OnboardingPage(
-            image: "newspaper.fill",
-            title: "Football News",
-            description: "Stay updated with the latest editorial content"
         )
     ]
-    
+
     var body: some View {
         ZStack {
             Color(.systemBackground).ignoresSafeArea()
-            
+
             TabView(selection: $currentPage) {
-                ForEach(0..<pages.count, id: \.self) { index in
+                ForEach(0..<pages.count, id: \self) { index in
                     OnboardingPageView(page: pages[index])
                         .tag(index)
                 }
             }
             .tabViewStyle(PageTabViewStyle(indexDisplayMode: .always))
             .indexViewStyle(PageIndexViewStyle(backgroundDisplayMode: .always))
-            
+
             VStack {
                 HStack {
                     Spacer()
@@ -51,8 +45,7 @@ struct OnboardingView: View {
                     }
                 }
                 Spacer()
-                
-                // Triggers dynamically only on the last index of the updated 3-page sequence
+
                 if currentPage == pages.count - 1 {
                     Button(action: { finishFlow() }) {
                         Text("Get Started")
@@ -69,10 +62,9 @@ struct OnboardingView: View {
             }
         }
     }
-    
+
     private func finishFlow() {
         hasSeenOnboarding = true
-        // Sequential Authorization Triggering remains perfectly intact
         requestTrackingPermission {
             requestNotificationPermission {
                 DispatchQueue.main.async {
@@ -81,7 +73,7 @@ struct OnboardingView: View {
             }
         }
     }
-    
+
     private func requestTrackingPermission(completion: @escaping () -> Void) {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
             ATTrackingManager.requestTrackingAuthorization { _ in
@@ -89,7 +81,7 @@ struct OnboardingView: View {
             }
         }
     }
-    
+
     private func requestNotificationPermission(completion: @escaping () -> Void) {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
             if granted {
@@ -110,7 +102,7 @@ struct OnboardingPage {
 
 struct OnboardingPageView: View {
     let page: OnboardingPage
-    
+
     var body: some View {
         VStack(spacing: 32) {
             Spacer()
