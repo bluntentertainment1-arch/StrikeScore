@@ -34,6 +34,7 @@ struct AboutUsView: View {
                         FeatureRow(icon: "bolt.fill", title: "Live Scores", description: "Real-time match updates")
                         FeatureRow(icon: "calendar", title: "Fixtures", description: "Upcoming match schedules")
                         FeatureRow(icon: "checkmark.circle.fill", title: "Results", description: "Past match scores and historical outcomes")
+                        FeatureRow(icon: "shield.fill", title: "Team Explorer", description: "Browse all teams and their match history")
                     }
                     .padding(.horizontal)
 
@@ -64,7 +65,6 @@ struct AboutUsView: View {
     }
 }
 
-// ✅ FIXED: Appended sub-layout structure back to the file context
 struct FeatureRow: View {
     let icon: String
     let title: String
