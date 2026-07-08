@@ -20,7 +20,7 @@ struct PrivacyPolicyView: View {
 
                         policySection(title: "3. How We Use Your Information", content: "We use the information we collect to: Provide and maintain the app, improve user experience, monitor app stability, analyze usage patterns, serve personalized advertisements, and comply with legal obligations.")
 
-                        policySection(title: "4. Third-Party Services", content: "We use third-party services including: Google Analytics for Firebase (to track user engagement and app performance metrics), Google AdMob (advertising), football-data.org (sports data), and Google Sheets (content management). These services may collect information according to their own privacy policies.")
+                        policySection(title: "4. Third-Party Services", content: "We use third-party services including: Google Analytics for Firebase (to track user engagement and app performance metrics) and Google AdMob (advertising). These services may collect information according to their own privacy policies.")
 
                         policySection(title: "5. Data Security", content: "We implement appropriate technical and organizational measures to protect your personal data against unauthorized access, alteration, disclosure, or destruction.")
 
