@@ -1,10 +1,16 @@
 import SwiftUI
 
 struct BannerAdContainerView: View {
+    @State private var isAdLoaded = false
+
     var body: some View {
-        VStack {
-            BannerAdView(adUnitID: AdMobManager.bannerAdUnitID)
-                .frame(height: 50)
+        Group {
+            if isAdLoaded {
+                BannerAdView(adUnitID: AdMobManager.bannerAdUnitID, isLoaded: $isAdLoaded)
+                    .frame(height: 50)
+            } else {
+                EmptyView()
+            }
         }
     }
 }
