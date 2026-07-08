@@ -22,7 +22,6 @@ struct HomeView: View {
                 $0.status.uppercased() == "FINISHED" || $0.status.uppercased() == "FT"
             }
             .sorted {
-                // Sort by date descending (newest first), then by time descending
                 guard let dateA = formatter.date(from: $0.matchDate),
                       let dateB = formatter.date(from: $1.matchDate) else { return false }
                 if dateA != dateB {
@@ -30,7 +29,7 @@ struct HomeView: View {
                 }
                 return $0.matchTime > $1.matchTime
             }
-            .prefix(15)  // Show only the 15 most recent results
+            .prefix(15)
             .map { $0 }
     }
 
@@ -61,7 +60,6 @@ struct HomeView: View {
 
     private func startResultsRefreshTimer() {
         stopResultsRefreshTimer()
-        // Refresh every 60 seconds to check for new finished match results from Excel
         resultsRefreshTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
             Task {
                 await viewModel.loadCMSData()
@@ -78,6 +76,7 @@ struct HomeView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 0) {
+                    // Auto-hiding banner — shows only when AdMob serves an ad
                     InlineBannerAdView(
                         adUnitID: AdMobManager.bannerAdUnitID,
                         adSize: .standard
@@ -87,7 +86,7 @@ struct HomeView: View {
 
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 10) {
-                            ForEach(-3...7, id: \.self) { day in
+                            ForEach(-3...7, id: \self) { day in
                                 DateBubbleView(day: day, isSelected: selectedDate == day) {
                                     selectedDate = day
                                 }
@@ -184,7 +183,7 @@ struct HomeView: View {
 
     private var groupedFixturesView: some View {
         LazyVStack(spacing: 16) {
-            ForEach(Array(groupedFixtures.enumerated()), id: \.offset) { groupIndex, group in
+            ForEach(Array(groupedFixtures.enumerated()), id: \offset) { groupIndex, group in
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 6) {
                         Image(systemName: "shield.fill")
@@ -201,7 +200,7 @@ struct HomeView: View {
                     .padding(.horizontal)
 
                     VStack(spacing: 10) {
-                        ForEach(Array(group.matches.enumerated()), id: \.element.id) { matchIndex, match in
+                        ForEach(Array(group.matches.enumerated()), id: \element.id) { matchIndex, match in
                             VStack(spacing: 10) {
                                 MatchCardView(match: match, onTap: {
                                     handleFixtureTap(match: match)
@@ -226,7 +225,7 @@ struct HomeView: View {
 
     private var searchResultsView: some View {
         LazyVStack(spacing: 10) {
-            ForEach(Array(filteredFixturesFeed.enumerated()), id: \.element.id) { index, match in
+            ForEach(Array(filteredFixturesFeed.enumerated()), id: \element.id) { index, match in
                 VStack(spacing: 10) {
                     MatchCardView(match: match, onTap: {
                         handleFixtureTap(match: match)
