@@ -8,6 +8,17 @@ class ExcelCMSService {
         case parseFailed
     }
 
+    // MARK: - FIFA Content Filter
+    private let fifaBlockedTerms = [
+        "fifa", "world cup", "club world cup", 
+        "women's world cup", "fifa world cup", "fifa women's"
+    ]
+
+    private func isFIFACompetition(_ name: String) -> Bool {
+        let lowercased = name.lowercased()
+        return fifaBlockedTerms.contains { lowercased.contains($0) }
+    }
+
     func fetchFeaturedMatches() async throws -> [FeaturedMatch] {
         guard let url = URL(string: AppConfig.excelFeaturedURL) else {
             throw CMSParseError.invalidData
@@ -83,6 +94,12 @@ class ExcelCMSService {
                 // Match Briefing - last column
                 matchBriefing: columns.count > 20 ? columns[20] : nil
             )
+
+            // Filter out FIFA competitions
+            if isFIFACompetition(match.competition) {
+                AppLogger.shared.log("FILTERED OUT FIFA match: \(match.homeTeam) vs \(match.awayTeam) in \(match.competition)")
+                continue
+            }
 
             if match.isVisible {
                 results.append(match)
