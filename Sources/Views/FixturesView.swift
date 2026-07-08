@@ -27,7 +27,7 @@ struct FixturesView: View {
                             }
                             .padding(.top, 80)
                         } else {
-                            ForEach(Array(filteredUpcomingMatches.enumerated()), id: \.element.id) { index, match in
+                            ForEach(Array(filteredUpcomingMatches.enumerated()), id: \element.id) { index, match in
                                 VStack(spacing: 12) {
                                     FixtureCard(
                                         match: match,
@@ -40,7 +40,7 @@ struct FixturesView: View {
                                     }
                                     .padding(.horizontal)
 
-                                    // Insert banner ad every 3 fixtures
+                                    // Auto-hiding banner — shows only when AdMob serves an ad
                                     if (index + 1) % 3 == 0 && index != filteredUpcomingMatches.count - 1 {
                                         InlineBannerAdView(
                                             adUnitID: AdMobManager.bannerAdUnitID,
@@ -55,7 +55,6 @@ struct FixturesView: View {
                     .padding(.vertical)
                     .padding(.bottom, 85)
                 }
-                // Dismisses the keyboard when scrolling or dragging through results
                 .gesture(
                     DragGesture().onChanged { _ in
                         dismissKeyboard()
@@ -80,7 +79,6 @@ struct FixturesView: View {
         let today = Calendar.current.startOfDay(for: Date())
 
         let upcoming = viewModel.featuredMatches.filter { match in
-            // Exclude live and finished matches
             guard !match.isLive &&
                   match.status.uppercased() != "LIVE" &&
                   match.status.uppercased() != "IN_PLAY" &&
@@ -89,7 +87,6 @@ struct FixturesView: View {
                 return false
             }
 
-            // Only include matches from today onwards
             guard let matchDate = formatter.date(from: match.matchDate) else {
                 return false
             }
