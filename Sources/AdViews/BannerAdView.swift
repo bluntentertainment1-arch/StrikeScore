@@ -100,16 +100,16 @@ struct InlineBannerAdView: View {
     @State private var isAdLoaded = false
 
     var body: some View {
-        Group {
-            if isAdLoaded {
-                BannerAdView(adUnitID: adUnitID, adSize: adSize, isLoaded: $isAdLoaded)
-                    .frame(height: adSize.height)
-                    .frame(maxWidth: .infinity)
-                    .background(Color(.systemGray6))
-                    .cornerRadius(8)
-            } else {
-                EmptyView()
-            }
-        }
+        // BannerAdView must stay mounted at all times so it can actually call
+        // .load() (and retry on failure). Conditionally instantiating it here
+        // meant it never loaded a single ad in the first place. Instead, keep
+        // it in the tree and just collapse it visually until it has content.
+        BannerAdView(adUnitID: adUnitID, adSize: adSize, isLoaded: $isAdLoaded)
+            .frame(height: isAdLoaded ? adSize.height : 0)
+            .frame(maxWidth: isAdLoaded ? .infinity : 0)
+            .background(isAdLoaded ? Color(.systemGray6) : Color.clear)
+            .cornerRadius(isAdLoaded ? 8 : 0)
+            .opacity(isAdLoaded ? 1 : 0)
+            .clipped()
     }
 }
