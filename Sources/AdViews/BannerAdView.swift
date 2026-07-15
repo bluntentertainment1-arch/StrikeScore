@@ -67,17 +67,28 @@ struct BannerAdView: UIViewRepresentable {
 
     class Coordinator: NSObject, BannerViewDelegate {
         var parent: BannerAdView
+        private var retryCount = 0
+        private let maxRetryDelay: TimeInterval = 60
 
         init(_ parent: BannerAdView) {
             self.parent = parent
         }
 
         func bannerViewDidReceiveAd(_ bannerView: BannerView) {
+            retryCount = 0
             parent.isLoaded = true
         }
 
         func bannerView(_ bannerView: BannerView, didFailToReceiveAdWithError error: Error) {
             parent.isLoaded = false
+            AppLogger.shared.error("Banner failed to load: \(error.localizedDescription)")
+
+            // Retry with exponential backoff instead of giving up permanently.
+            let delay = min(5.0 * pow(2.0, Double(retryCount)), maxRetryDelay)
+            retryCount += 1
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak bannerView] in
+                bannerView?.load(Request())
+            }
         }
     }
 }
