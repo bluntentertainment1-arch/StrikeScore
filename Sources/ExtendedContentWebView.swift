@@ -162,16 +162,48 @@ struct SecureWebEngineRepresentable: UIViewRepresentable {
             DispatchQueue.main.async { self.parent.canGoBack = webView.canGoBack }
         }
 
-        func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
-            // Let pop-ups open, then auto-kill them instantly so the stream stays visible
-            guard let url = navigationAction.request.url else { return nil }
-            let popup = WKWebView(frame: .zero, configuration: configuration)
-            popup.load(URLRequest(url: url))
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                popup.stopLoading()
-                popup.removeFromSuperview()
+        func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+            // Only police the top-level page — ad iframes loading within the
+            // page are the site's own problem, not something that visibly
+            // hijacks the stream. What DOES hijack it is the main frame
+            // itself getting redirected by an ad script via
+            // `location.href = ...`, with no popup or user tap involved.
+            guard navigationAction.targetFrame?.isMainFrame == true else {
+                decisionHandler(.allow)
+                return
             }
-            return popup
+
+            guard let targetHost = navigationAction.request.url?.host,
+                  let originalHost = parent.url.host else {
+                decisionHandler(.allow)
+                return
+            }
+
+            let isSameSite = targetHost == originalHost || targetHost.hasSuffix("." + originalHost)
+
+            // Allow same-site navigation and anything the user directly
+            // tapped. Block automatic (script-triggered) redirects to a
+            // different domain — that's the actual cause of the stream
+            // appearing to randomly close and reopen.
+            if isSameSite || navigationAction.navigationType == .linkActivated {
+                decisionHandler(.allow)
+            } else {
+                AppLogger.shared.error("Blocked off-site auto-redirect to \(targetHost)")
+                decisionHandler(.cancel)
+            }
+        }
+
+        func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration, for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+            // Block popups entirely — do NOT create/load them, even briefly.
+            // Loading a popup (as the old code did) gave its JavaScript a
+            // live `window.opener` reference back into this WKWebView. Ad
+            // scripts commonly exploit that by running
+            // `window.opener.location.href = <ad url>` to hijack the VISIBLE
+            // stream page itself — that's what made the player look like it
+            // was randomly closing and reopening. Returning nil stops
+            // window.open() from creating anything at all, so there's never
+            // a reference for the ad script to hijack through.
+            return nil
         }
 
         func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping () -> Void) {
