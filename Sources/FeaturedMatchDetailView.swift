@@ -112,14 +112,11 @@ struct FeaturedMatchDetailView: View {
                         .frame(maxWidth: isPad ? 700 : .infinity)
                     }
 
-                    // Auto-hiding banner — shows only when AdMob serves an ad
-                    InlineBannerAdView(
-                        adUnitID: AdMobManager.squareBannerAdUnitID,
-                        adSize: .mediumRectangle
-                    )
-                    .padding(.horizontal)
-                    .padding(.top, 8)
-                    .frame(maxWidth: isPad ? 700 : .infinity)
+                    // Auto-hiding native ad — shows only when AdMob serves an ad
+                    InlineNativeAdView(adUnitID: AdMobManager.nativeAdUnitID)
+                        .padding(.horizontal)
+                        .padding(.top, 8)
+                        .frame(maxWidth: isPad ? 700 : .infinity)
 
                     if match.hasMatchBriefing {
                         VStack(alignment: .leading, spacing: 12) {
