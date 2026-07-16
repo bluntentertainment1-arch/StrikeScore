@@ -2,15 +2,18 @@ import SwiftUI
 import GoogleMobileAds
 
 enum BannerAdSize {
-    case standard      // 320x50
+    case standard      // Adaptive anchored banner (Google-recommended over fixed 320x50)
     case mediumRectangle // 300x250 (square)
     case largeBanner   // 320x100
     case fullBanner    // 468x60
 
-    var adSize: AdSize {
+    /// Fixed sizes only. `.standard` has no fixed size — it's resolved at
+    /// render time from the real available width via `resolvedAdSize(width:)`,
+    /// since adaptive banners need to know the actual on-screen width.
+    var fixedAdSize: AdSize? {
         switch self {
         case .standard:
-            return AdSizeBanner
+            return nil
         case .mediumRectangle:
             return AdSizeMediumRectangle
         case .largeBanner:
@@ -20,17 +23,11 @@ enum BannerAdSize {
         }
     }
 
-    var height: CGFloat {
-        switch self {
-        case .standard:
-            return 50
-        case .mediumRectangle:
-            return 250
-        case .largeBanner:
-            return 100
-        case .fullBanner:
-            return 60
+    func resolvedAdSize(width: CGFloat) -> AdSize {
+        if let fixed = fixedAdSize {
+            return fixed
         }
+        return currentOrientationAnchoredAdaptiveBanner(width: width)
     }
 }
 
@@ -43,17 +40,17 @@ final class BannerDebugState: ObservableObject {
 // MARK: - Banner Ad View (Auto-shows when ad loads)
 struct BannerAdView: UIViewRepresentable {
     let adUnitID: String
-    let adSize: BannerAdSize
+    let resolvedSize: AdSize
     @Binding var isLoaded: Bool
 
-    init(adUnitID: String, adSize: BannerAdSize = .standard, isLoaded: Binding<Bool> = .constant(true)) {
+    init(adUnitID: String, resolvedSize: AdSize, isLoaded: Binding<Bool> = .constant(true)) {
         self.adUnitID = adUnitID
-        self.adSize = adSize
+        self.resolvedSize = resolvedSize
         self._isLoaded = isLoaded
     }
 
     func makeUIView(context: Context) -> BannerView {
-        let bannerView = BannerView(adSize: adSize.adSize)
+        let bannerView = BannerView(adSize: resolvedSize)
         bannerView.adUnitID = adUnitID
         bannerView.delegate = context.coordinator
 
@@ -61,7 +58,7 @@ struct BannerAdView: UIViewRepresentable {
             bannerView.rootViewController = windowScene.windows.first(where: { $0.isKeyWindow })?.rootViewController
         }
 
-        BannerDebugState.shared.lastStatus = "Requesting... adSize=\(adSize.adSize.size.width)x\(adSize.adSize.size.height)"
+        BannerDebugState.shared.lastStatus = "Requesting... adSize=\(resolvedSize.size.width)x\(resolvedSize.size.height)"
         bannerView.load(Request())
         return bannerView
     }
@@ -116,18 +113,21 @@ struct InlineBannerAdView: View {
 
     var body: some View {
         VStack(spacing: 2) {
-            // BannerAdView must always have a real, non-zero frame — the SDK
-            // validates the container's size at load() time, and collapsing
-            // it to 0x0 while unloaded (the previous approach) caused every
-            // request to fail with "Invalid ad width or height" before it
-            // even had a chance to fill. Reserve the real size up front and
-            // only toggle visibility, not layout size.
-            BannerAdView(adUnitID: adUnitID, adSize: adSize, isLoaded: $isAdLoaded)
-                .frame(height: adSize.height)
-                .frame(maxWidth: .infinity)
-                .background(isAdLoaded ? Color(.systemGray6) : Color.clear)
-                .cornerRadius(isAdLoaded ? 8 : 0)
-                .opacity(isAdLoaded ? 1 : 0)
+            // GeometryReader gives the real available width so adaptive
+            // banners can be sized correctly. BannerAdView always keeps a
+            // real, non-zero frame — the SDK validates the container's size
+            // at load() time, and collapsing it to 0x0 while unloaded caused
+            // every request to fail with "Invalid ad width or height."
+            GeometryReader { geo in
+                let resolved = adSize.resolvedAdSize(width: geo.size.width)
+                BannerAdView(adUnitID: adUnitID, resolvedSize: resolved, isLoaded: $isAdLoaded)
+                    .background(isAdLoaded ? Color(.systemGray6) : Color.clear)
+                    .cornerRadius(isAdLoaded ? 8 : 0)
+                    .opacity(isAdLoaded ? 1 : 0)
+                    .frame(width: geo.size.width, height: resolved.size.height)
+            }
+            .frame(height: adSize.fixedAdSize?.size.height ?? 50)
+            .frame(maxWidth: .infinity)
 
             // TEMP DEBUG — remove once confirmed fixed.
             Text("banner debug: \(debugState.lastStatus)")
