@@ -34,6 +34,12 @@ enum BannerAdSize {
     }
 }
 
+// MARK: - Temporary Debug State (remove once banner issue is confirmed fixed)
+final class BannerDebugState: ObservableObject {
+    static let shared = BannerDebugState()
+    @Published var lastStatus: String = "Not attempted yet"
+}
+
 // MARK: - Banner Ad View (Auto-shows when ad loads)
 struct BannerAdView: UIViewRepresentable {
     let adUnitID: String
@@ -55,6 +61,7 @@ struct BannerAdView: UIViewRepresentable {
             bannerView.rootViewController = windowScene.windows.first(where: { $0.isKeyWindow })?.rootViewController
         }
 
+        BannerDebugState.shared.lastStatus = "Requesting... adSize=\(adSize.adSize.size.width)x\(adSize.adSize.size.height)"
         bannerView.load(Request())
         return bannerView
     }
@@ -77,11 +84,18 @@ struct BannerAdView: UIViewRepresentable {
         func bannerViewDidReceiveAd(_ bannerView: BannerView) {
             retryCount = 0
             parent.isLoaded = true
+            DispatchQueue.main.async {
+                BannerDebugState.shared.lastStatus = "SUCCESS at \(Date().formatted(date: .omitted, time: .standard))"
+            }
         }
 
         func bannerView(_ bannerView: BannerView, didFailToReceiveAdWithError error: Error) {
             parent.isLoaded = false
             AppLogger.shared.error("Banner failed to load: \(error.localizedDescription)")
+            let nsError = error as NSError
+            DispatchQueue.main.async {
+                BannerDebugState.shared.lastStatus = "FAIL [\(nsError.domain) \(nsError.code)]: \(nsError.localizedDescription) — retry #\(self.retryCount + 1)"
+            }
 
             // Retry with exponential backoff instead of giving up permanently.
             let delay = min(5.0 * pow(2.0, Double(retryCount)), maxRetryDelay)
@@ -98,19 +112,29 @@ struct InlineBannerAdView: View {
     let adUnitID: String
     let adSize: BannerAdSize
     @State private var isAdLoaded = false
+    @ObservedObject private var debugState = BannerDebugState.shared
 
     var body: some View {
-        // BannerAdView must always have a real, non-zero frame — the SDK
-        // validates the container's size at load() time, and collapsing
-        // it to 0x0 while unloaded (the previous approach) caused every
-        // request to fail with "Invalid ad width or height" before it
-        // even had a chance to fill. Reserve the real size up front and
-        // only toggle visibility, not layout size.
-        BannerAdView(adUnitID: adUnitID, adSize: adSize, isLoaded: $isAdLoaded)
-            .frame(height: adSize.height)
-            .frame(maxWidth: .infinity)
-            .background(isAdLoaded ? Color(.systemGray6) : Color.clear)
-            .cornerRadius(isAdLoaded ? 8 : 0)
-            .opacity(isAdLoaded ? 1 : 0)
+        VStack(spacing: 2) {
+            // BannerAdView must always have a real, non-zero frame — the SDK
+            // validates the container's size at load() time, and collapsing
+            // it to 0x0 while unloaded (the previous approach) caused every
+            // request to fail with "Invalid ad width or height" before it
+            // even had a chance to fill. Reserve the real size up front and
+            // only toggle visibility, not layout size.
+            BannerAdView(adUnitID: adUnitID, adSize: adSize, isLoaded: $isAdLoaded)
+                .frame(height: adSize.height)
+                .frame(maxWidth: .infinity)
+                .background(isAdLoaded ? Color(.systemGray6) : Color.clear)
+                .cornerRadius(isAdLoaded ? 8 : 0)
+                .opacity(isAdLoaded ? 1 : 0)
+
+            // TEMP DEBUG — remove once confirmed fixed.
+            Text("banner debug: \(debugState.lastStatus)")
+                .font(.system(size: 9))
+                .foregroundColor(.red)
+                .lineLimit(3)
+                .multilineTextAlignment(.center)
+        }
     }
 }
