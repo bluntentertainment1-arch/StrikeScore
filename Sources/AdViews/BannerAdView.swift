@@ -71,15 +71,12 @@ struct BannerAdView: UIViewRepresentable {
 
     class Coordinator: NSObject, BannerViewDelegate {
         var parent: BannerAdView
-        private var retryCount = 0
-        private let maxRetryDelay: TimeInterval = 60
 
         init(_ parent: BannerAdView) {
             self.parent = parent
         }
 
         func bannerViewDidReceiveAd(_ bannerView: BannerView) {
-            retryCount = 0
             parent.isLoaded = true
             DispatchQueue.main.async {
                 BannerDebugState.shared.lastStatus = "SUCCESS at \(Date().formatted(date: .omitted, time: .standard))"
@@ -91,15 +88,13 @@ struct BannerAdView: UIViewRepresentable {
             AppLogger.shared.error("Banner failed to load: \(error.localizedDescription)")
             let nsError = error as NSError
             DispatchQueue.main.async {
-                BannerDebugState.shared.lastStatus = "FAIL [\(nsError.domain) \(nsError.code)]: \(nsError.localizedDescription) — retry #\(self.retryCount + 1)"
+                BannerDebugState.shared.lastStatus = "FAIL [\(nsError.domain) \(nsError.code)]: \(nsError.localizedDescription)"
             }
-
-            // Retry with exponential backoff instead of giving up permanently.
-            let delay = min(5.0 * pow(2.0, Double(retryCount)), maxRetryDelay)
-            retryCount += 1
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak bannerView] in
-                bannerView?.load(Request())
-            }
+            // No auto-retry here anymore — repeated backoff retries across every
+            // banner slot (plus the interstitial/rewarded loaders all doing the
+            // same thing) is what was hammering AdMob and triggering throttling.
+            // The banner now simply reloads when its view reappears — see
+            // InlineBannerAdView's onAppear below.
         }
     }
 }
@@ -109,6 +104,7 @@ struct InlineBannerAdView: View {
     let adUnitID: String
     let adSize: BannerAdSize
     @State private var isAdLoaded = false
+    @State private var reloadID = UUID()
     @ObservedObject private var debugState = BannerDebugState.shared
 
     var body: some View {
@@ -121,6 +117,7 @@ struct InlineBannerAdView: View {
             GeometryReader { geo in
                 let resolved = adSize.resolvedAdSize(width: geo.size.width)
                 BannerAdView(adUnitID: adUnitID, resolvedSize: resolved, isLoaded: $isAdLoaded)
+                    .id(reloadID)
                     .background(isAdLoaded ? Color(.systemGray6) : Color.clear)
                     .cornerRadius(isAdLoaded ? 8 : 0)
                     .opacity(isAdLoaded ? 1 : 0)
@@ -128,6 +125,14 @@ struct InlineBannerAdView: View {
             }
             .frame(height: adSize.fixedAdSize?.size.height ?? 50)
             .frame(maxWidth: .infinity)
+            .onAppear {
+                // Banner no longer auto-retries on a timer (see Coordinator).
+                // If it isn't currently loaded, changing the id forces
+                // BannerAdView to be recreated, which issues one fresh load.
+                if !isAdLoaded {
+                    reloadID = UUID()
+                }
+            }
 
             // TEMP DEBUG — remove once confirmed fixed.
             Text("banner debug: \(debugState.lastStatus)")
