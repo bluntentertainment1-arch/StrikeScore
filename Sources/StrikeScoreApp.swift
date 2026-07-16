@@ -23,10 +23,13 @@ struct StrikeScoreApp: App {
     @State private var currentPhase: AppFlowState.ViewPhase = .initialSplash
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
 
-    // FIX #4 & #8: Initialize AdMobManager early and preload ads + start timer
+    // AdMobManager is initialized and its rewarded-prompt timer started here.
+    // Ad preloading itself now happens once, in AppDelegate.didFinishLaunching —
+    // calling preloadAllAds() again here as well as duplicated every request the
+    // AppDelegate had just fired off, which was part of what triggered AdMob's
+    // request throttling.
     init() {
         _ = AdMobManager.shared
-        AdMobManager.shared.preloadAllAds()
         AdMobManager.shared.startRewardedPromptTimer()
     }
 
