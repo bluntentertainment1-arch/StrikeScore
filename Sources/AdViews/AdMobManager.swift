@@ -5,7 +5,7 @@ import UIKit
 class AdMobManager: NSObject, FullScreenContentDelegate {
     static let shared = AdMobManager()
 
-    static let bannerAdUnitID = "ca-app-pub-3940256099942544/2934735716" // TEMP: Google public test banner ID — swap back to "ca-app-pub-1819215492028258/1505777066" once verified
+    static let bannerAdUnitID = "ca-app-pub-1819215492028258/1505777066"
     static let rewardedAdUnitID = "ca-app-pub-1819215492028258/9042697753"
     static let interstitialAdUnitID = "ca-app-pub-1819215492028258/7538044399"
     static let squareBannerAdUnitID = "ca-app-pub-1819215492028258/1505777066"
