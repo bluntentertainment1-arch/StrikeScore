@@ -11,7 +11,6 @@ struct ExtendedContentWebView: View {
     var onDismiss: (() -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
     @StateObject private var storage = WebContentStorage()
-    @State private var canGoBack = false
     @State private var isLandscape = false
 
     var body: some View {
@@ -21,17 +20,6 @@ struct ExtendedContentWebView: View {
                 .ignoresSafeArea(edges: .top)
 
             HStack {
-                Button(action: { storage.webView?.goBack() }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 16, weight: .bold))
-                        Text("Back")
-                    }
-                    .foregroundColor(canGoBack ? .green : .secondary)
-                }
-                .disabled(!canGoBack)
-
-                Spacer()
                 Text("Content View")
                     .font(.system(size: 15, weight: .bold, design: .rounded))
                 Spacer()
@@ -55,7 +43,7 @@ struct ExtendedContentWebView: View {
 
             Divider()
 
-            SecureWebEngineRepresentable(url: url, storage: storage, canGoBack: $canGoBack)
+            SecureWebEngineRepresentable(url: url, storage: storage)
                 .ignoresSafeArea(edges: .bottom)
         }
         .background(Color(.systemBackground))
@@ -100,7 +88,6 @@ struct ExtendedContentWebView: View {
 struct SecureWebEngineRepresentable: UIViewRepresentable {
     let url: URL
     let storage: WebContentStorage
-    @Binding var canGoBack: Bool
 
     func makeUIView(context: Context) -> WKWebView {
         if let existingView = storage.webView, storage.lastLoadedURL == url {
@@ -153,14 +140,6 @@ struct SecureWebEngineRepresentable: UIViewRepresentable {
     class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
         var parent: SecureWebEngineRepresentable
         init(_ parent: SecureWebEngineRepresentable) { self.parent = parent }
-
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            DispatchQueue.main.async { self.parent.canGoBack = webView.canGoBack }
-        }
-
-        func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
-            DispatchQueue.main.async { self.parent.canGoBack = webView.canGoBack }
-        }
 
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
             // Only police the top-level page — ad iframes loading within the
