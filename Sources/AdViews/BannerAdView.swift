@@ -7,9 +7,6 @@ enum BannerAdSize {
     case largeBanner   // 320x100
     case fullBanner    // 468x60
 
-    /// Fixed sizes only. `.standard` has no fixed size — it's resolved at
-    /// render time from the real available width via `resolvedAdSize(width:)`,
-    /// since adaptive banners need to know the actual on-screen width.
     var fixedAdSize: AdSize? {
         switch self {
         case .standard:
@@ -23,18 +20,19 @@ enum BannerAdSize {
         }
     }
 
-    func resolvedAdSize(width: CGFloat) -> AdSize {
+    /// Resolved from the device's screen width rather than the SwiftUI
+    /// layout tree. This is what lets the container safely collapse to zero
+    /// height when there's no ad: if the size were derived from a
+    /// GeometryReader inside a collapsed (0-height) parent, the reported
+    /// width could come back 0 too, producing an invalid AdSize and an
+    /// "Invalid ad width or height" load failure. Deriving from the screen
+    /// directly avoids that coupling entirely.
+    var resolvedAdSize: AdSize {
         if let fixed = fixedAdSize {
             return fixed
         }
-        return currentOrientationAnchoredAdaptiveBanner(width: width)
+        return currentOrientationAnchoredAdaptiveBanner(width: UIScreen.main.bounds.width)
     }
-}
-
-// MARK: - Temporary Debug State (remove once banner issue is confirmed fixed)
-final class BannerDebugState: ObservableObject {
-    static let shared = BannerDebugState()
-    @Published var lastStatus: String = "Not attempted yet"
 }
 
 // MARK: - Banner Ad View (Auto-shows when ad loads)
@@ -58,7 +56,6 @@ struct BannerAdView: UIViewRepresentable {
             bannerView.rootViewController = windowScene.windows.first(where: { $0.isKeyWindow })?.rootViewController
         }
 
-        BannerDebugState.shared.lastStatus = "Requesting... adSize=\(resolvedSize.size.width)x\(resolvedSize.size.height)"
         bannerView.load(Request())
         return bannerView
     }
@@ -78,22 +75,15 @@ struct BannerAdView: UIViewRepresentable {
 
         func bannerViewDidReceiveAd(_ bannerView: BannerView) {
             parent.isLoaded = true
-            DispatchQueue.main.async {
-                BannerDebugState.shared.lastStatus = "SUCCESS at \(Date().formatted(date: .omitted, time: .standard))"
-            }
         }
 
         func bannerView(_ bannerView: BannerView, didFailToReceiveAdWithError error: Error) {
             parent.isLoaded = false
             AppLogger.shared.error("Banner failed to load: \(error.localizedDescription)")
-            let nsError = error as NSError
-            DispatchQueue.main.async {
-                BannerDebugState.shared.lastStatus = "FAIL [\(nsError.domain) \(nsError.code)]: \(nsError.localizedDescription)"
-            }
-            // No auto-retry here anymore — repeated backoff retries across every
-            // banner slot (plus the interstitial/rewarded loaders all doing the
-            // same thing) is what was hammering AdMob and triggering throttling.
-            // The banner now simply reloads when its view reappears — see
+            // No auto-retry here — repeated backoff retries across every
+            // banner slot (plus interstitial/rewarded doing the same) is
+            // what was hammering AdMob and triggering throttling. The
+            // banner simply reloads when its view reappears — see
             // InlineBannerAdView's onAppear below.
         }
     }
@@ -105,41 +95,23 @@ struct InlineBannerAdView: View {
     let adSize: BannerAdSize
     @State private var isAdLoaded = false
     @State private var reloadID = UUID()
-    @ObservedObject private var debugState = BannerDebugState.shared
 
     var body: some View {
-        VStack(spacing: 2) {
-            // GeometryReader gives the real available width so adaptive
-            // banners can be sized correctly. BannerAdView always keeps a
-            // real, non-zero frame — the SDK validates the container's size
-            // at load() time, and collapsing it to 0x0 while unloaded caused
-            // every request to fail with "Invalid ad width or height."
-            GeometryReader { geo in
-                let resolved = adSize.resolvedAdSize(width: geo.size.width)
-                BannerAdView(adUnitID: adUnitID, resolvedSize: resolved, isLoaded: $isAdLoaded)
-                    .id(reloadID)
-                    .background(isAdLoaded ? Color(.systemGray6) : Color.clear)
-                    .cornerRadius(isAdLoaded ? 8 : 0)
-                    .opacity(isAdLoaded ? 1 : 0)
-                    .frame(width: geo.size.width, height: resolved.size.height)
-            }
-            .frame(height: adSize.fixedAdSize?.size.height ?? 50)
+        BannerAdView(adUnitID: adUnitID, resolvedSize: adSize.resolvedAdSize, isLoaded: $isAdLoaded)
+            .id(reloadID)
+            .background(isAdLoaded ? Color(.systemGray6) : Color.clear)
+            .cornerRadius(isAdLoaded ? 8 : 0)
+            .frame(height: isAdLoaded ? adSize.resolvedAdSize.size.height : 0)
             .frame(maxWidth: .infinity)
+            .opacity(isAdLoaded ? 1 : 0)
+            .clipped()
             .onAppear {
-                // Banner no longer auto-retries on a timer (see Coordinator).
-                // If it isn't currently loaded, changing the id forces
-                // BannerAdView to be recreated, which issues one fresh load.
+                // Banner no longer auto-retries on a timer. If it isn't
+                // currently loaded, changing the id forces BannerAdView to
+                // be recreated, which issues one fresh load.
                 if !isAdLoaded {
                     reloadID = UUID()
                 }
             }
-
-            // TEMP DEBUG — remove once confirmed fixed.
-            Text("banner debug: \(debugState.lastStatus)")
-                .font(.system(size: 9))
-                .foregroundColor(.red)
-                .lineLimit(3)
-                .multilineTextAlignment(.center)
-        }
     }
 }
