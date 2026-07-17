@@ -2,12 +2,6 @@ import SwiftUI
 import GoogleMobileAds
 import UIKit
 
-// MARK: - Temporary Debug State (remove once native ad issue is diagnosed)
-final class NativeAdDebugState: ObservableObject {
-    static let shared = NativeAdDebugState()
-    @Published var lastStatus: String = "Not attempted yet"
-}
-
 // MARK: - Loader / View Model
 final class NativeAdLoaderViewModel: NSObject, ObservableObject, NativeAdLoaderDelegate {
     @Published var nativeAd: NativeAd?
@@ -29,25 +23,17 @@ final class NativeAdLoaderViewModel: NSObject, ObservableObject, NativeAdLoaderD
         let loader = AdLoader(adUnitID: adUnitID, rootViewController: rootVC, adTypes: [.native], options: nil)
         loader.delegate = self
         adLoader = loader
-        NativeAdDebugState.shared.lastStatus = "Requesting... unit=\(adUnitID)"
         loader.load(Request())
     }
 
     func adLoader(_ adLoader: AdLoader, didReceive nativeAd: NativeAd) {
         retryCount = 0
         self.nativeAd = nativeAd
-        DispatchQueue.main.async {
-            NativeAdDebugState.shared.lastStatus = "SUCCESS at \(Date().formatted(date: .omitted, time: .standard))"
-        }
     }
 
     func adLoader(_ adLoader: AdLoader, didFailToReceiveAdWithError error: Error) {
         AppLogger.shared.error("Native ad failed to load: \(error.localizedDescription)")
         self.nativeAd = nil
-        let nsError = error as NSError
-        DispatchQueue.main.async {
-            NativeAdDebugState.shared.lastStatus = "FAIL [\(nsError.domain) \(nsError.code)]: \(nsError.localizedDescription) — retry #\(self.retryCount + 1)"
-        }
 
         // Retry with exponential backoff instead of giving up permanently.
         let delay = min(5.0 * pow(2.0, Double(retryCount)), maxRetryDelay)
@@ -164,7 +150,6 @@ struct NativeAdContainerView: UIViewRepresentable {
 struct InlineNativeAdView: View {
     let adUnitID: String
     @StateObject private var viewModel: NativeAdLoaderViewModel
-    @ObservedObject private var debugState = NativeAdDebugState.shared
 
     init(adUnitID: String) {
         self.adUnitID = adUnitID
@@ -172,18 +157,11 @@ struct InlineNativeAdView: View {
     }
 
     var body: some View {
-        VStack(spacing: 2) {
+        Group {
             if let nativeAd = viewModel.nativeAd {
                 NativeAdContainerView(nativeAd: nativeAd)
                     .frame(height: 280)
             }
-
-            // TEMP DEBUG — remove once confirmed fixed.
-            Text("native debug: \(debugState.lastStatus)")
-                .font(.system(size: 9))
-                .foregroundColor(.red)
-                .lineLimit(3)
-                .multilineTextAlignment(.center)
         }
         .onAppear {
             // Kick off the load regardless of current state — unlike the
