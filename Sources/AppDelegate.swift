@@ -13,18 +13,25 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         FirebaseApp.configure()
         AppLogger.shared.log("App launched - Firebase Analytics initialized")
 
-        // 2. Configure AdMob
-        MobileAds.shared.start() 
-        AppLogger.shared.log("App launched - AdMob initialized")
+        // 2. Configure AdMob — wait for the SDK's own completion callback
+        // before requesting any ads. Firing preloadAllAds() immediately
+        // after calling start() (the old code) doesn't wait for the SDK to
+        // actually finish initializing, so the very first ad requests after
+        // a cold launch would routinely fail. Each failure then walks the
+        // exponential backoff ladder (15s, 30s, 60s...), which is exactly
+        // what produced the 3-5 minute delay before the first interstitial
+        // became available.
+        MobileAds.shared.start { _ in
+            AppLogger.shared.log("AdMob SDK fully initialized")
+            AdMobManager.shared.preloadAllAds()
+        }
+        AppLogger.shared.log("App launched - AdMob initializing")
 
         // 3. Check ATT status on launch
         if #available(iOS 14, *) {
             let status = ATTrackingManager.trackingAuthorizationStatus
             AppLogger.shared.log("ATT status on launch: \(status.rawValue)")
         }
-
-        // 4. Preload all ads immediately after SDK is ready
-        AdMobManager.shared.preloadAllAds()
 
         return true
     }
