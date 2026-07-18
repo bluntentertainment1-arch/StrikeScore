@@ -1,7 +1,7 @@
 import SwiftUI
 import GoogleMobileAds
 
-enum BannerAdSize {
+enum BannerAdSize: Equatable {
     case standard      // Adaptive anchored banner (Google-recommended over fixed 320x50)
     case mediumRectangle // 300x250 (square)
     case largeBanner   // 320x100
@@ -39,15 +39,31 @@ enum BannerAdSize {
 struct BannerAdView: UIViewRepresentable {
     let adUnitID: String
     let resolvedSize: AdSize
+    let existingBannerView: BannerView?
     @Binding var isLoaded: Bool
 
-    init(adUnitID: String, resolvedSize: AdSize, isLoaded: Binding<Bool> = .constant(true)) {
+    init(adUnitID: String, resolvedSize: AdSize, existingBannerView: BannerView? = nil, isLoaded: Binding<Bool> = .constant(true)) {
         self.adUnitID = adUnitID
         self.resolvedSize = resolvedSize
+        self.existingBannerView = existingBannerView
         self._isLoaded = isLoaded
     }
 
     func makeUIView(context: Context) -> BannerView {
+        // If we were handed an already-loading (or already-loaded) preloaded
+        // instance, take it over instead of starting a fresh request — that's
+        // the whole point of preloading. Re-point its delegate at our own
+        // coordinator so this view's isLoaded binding gets updates, and if
+        // the ad already finished loading before we got here, reflect that
+        // immediately rather than waiting on a callback that already fired.
+        if let bannerView = existingBannerView {
+            bannerView.delegate = context.coordinator
+            if AdMobManager.shared.isPreloadedBannerLoaded {
+                DispatchQueue.main.async { isLoaded = true }
+            }
+            return bannerView
+        }
+
         let bannerView = BannerView(adSize: resolvedSize)
         bannerView.adUnitID = adUnitID
         bannerView.delegate = context.coordinator
@@ -95,9 +111,16 @@ struct InlineBannerAdView: View {
     let adSize: BannerAdSize
     @State private var isAdLoaded = false
     @State private var reloadID = UUID()
+    @State private var claimedPreloadedBanner: BannerView?
+    @State private var hasCheckedPreload = false
 
     var body: some View {
-        BannerAdView(adUnitID: adUnitID, resolvedSize: adSize.resolvedAdSize, isLoaded: $isAdLoaded)
+        BannerAdView(
+            adUnitID: adUnitID,
+            resolvedSize: adSize.resolvedAdSize,
+            existingBannerView: claimedPreloadedBanner,
+            isLoaded: $isAdLoaded
+        )
             .id(reloadID)
             .background(isAdLoaded ? Color(.systemGray6) : Color.clear)
             .cornerRadius(isAdLoaded ? 8 : 0)
@@ -106,6 +129,16 @@ struct InlineBannerAdView: View {
             .opacity(isAdLoaded ? 1 : 0)
             .clipped()
             .onAppear {
+                // Only the standard size matches what gets preloaded at app
+                // launch. The first standard slot to appear claims it; every
+                // other slot (including this one on a later appearance)
+                // falls through to its own normal load.
+                if !hasCheckedPreload {
+                    hasCheckedPreload = true
+                    if adSize == .standard, let preloaded = AdMobManager.shared.claimPreloadedBanner() {
+                        claimedPreloadedBanner = preloaded
+                    }
+                }
                 // Banner no longer auto-retries on a timer. If it isn't
                 // currently loaded, changing the id forces BannerAdView to
                 // be recreated, which issues one fresh load.
