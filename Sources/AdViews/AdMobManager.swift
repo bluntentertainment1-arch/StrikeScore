@@ -2,7 +2,7 @@ import SwiftUI
 import GoogleMobileAds
 import UIKit
 
-class AdMobManager: NSObject, FullScreenContentDelegate {
+class AdMobManager: NSObject, FullScreenContentDelegate, BannerViewDelegate {
     static let shared = AdMobManager()
 
     static let bannerAdUnitID = "ca-app-pub-1819215492028258/9538984219"
@@ -25,6 +25,44 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
     private var rewardedAd: RewardedAd?
     private var isLoadingRewarded = false
     private var rewardedRetryCount = 0
+
+    // MARK: - Preloaded Banner
+    // Standard-size banner ad units can't be preloaded generically the way
+    // Interstitial/Rewarded are — a BannerView still needs to be requested
+    // per on-screen slot. But there's always exactly one FIRST banner slot
+    // the user sees (the top of HomeView), and starting ITS load at app
+    // launch instead of waiting for HomeView to appear closes the gap where
+    // users would land on Home and see a collapsed/empty ad space for a
+    // beat before the request even began. `claimPreloadedBanner()` hands
+    // this instance to the first InlineBannerAdView that asks for one;
+    // every other concurrent slot still loads independently as before.
+    private var preloadedBannerView: BannerView?
+    private var preloadedBannerLoaded = false
+    private var preloadedBannerClaimed = false
+
+    func preloadStandardBanner() {
+        guard preloadedBannerView == nil else { return }
+        let banner = BannerView(adSize: BannerAdSize.standard.resolvedAdSize)
+        banner.adUnitID = AdMobManager.bannerAdUnitID
+        banner.delegate = self
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+            banner.rootViewController = windowScene.windows.first(where: { $0.isKeyWindow })?.rootViewController
+        }
+        preloadedBannerView = banner
+        banner.load(Request())
+        AppLogger.shared.log("Preloading standard banner ahead of Home view...")
+    }
+
+    /// Returns the preloaded banner view exactly once. Returns nil if it was
+    /// already claimed by an earlier slot, or hasn't been requested yet —
+    /// either way the caller falls back to its own normal load.
+    func claimPreloadedBanner() -> BannerView? {
+        guard !preloadedBannerClaimed, let banner = preloadedBannerView else { return nil }
+        preloadedBannerClaimed = true
+        return banner
+    }
+
+    var isPreloadedBannerLoaded: Bool { preloadedBannerLoaded }
 
     // MARK: - Pending Completions (execute after ad dismisses)
     private var pendingInterstitialCompletion: (() -> Void)?
@@ -100,6 +138,7 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
         AppLogger.shared.log("Preloading all ads...")
         loadInterstitial()
         loadRewardedAd()
+        preloadStandardBanner()
     }
 
     // MARK: - Single Interstitial Loader
@@ -347,6 +386,17 @@ class AdMobManager: NSObject, FullScreenContentDelegate {
         pendingRewardedClose?()
         pendingRewardedClose = nil
         loadInterstitial()
+    }
+
+    // MARK: - BannerViewDelegate (preloaded banner only)
+    func bannerViewDidReceiveAd(_ bannerView: BannerView) {
+        preloadedBannerLoaded = true
+        AppLogger.shared.log("Preloaded banner LOADED and READY")
+    }
+
+    func bannerView(_ bannerView: BannerView, didFailToReceiveAdWithError error: Error) {
+        preloadedBannerLoaded = false
+        AppLogger.shared.error("Preloaded banner failed to load: \(error.localizedDescription)")
     }
 
     // MARK: - Window Lookup (FIX #6: Walk to top presented controller)
